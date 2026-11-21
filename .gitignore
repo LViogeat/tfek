@@ -9,3 +9,4 @@ dev-dist
 /android
 supabase/.branches
 supabase/.temp
+tests/e2e/shots
