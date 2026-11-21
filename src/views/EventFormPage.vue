@@ -70,7 +70,9 @@
               :style="{ background: t.bg }"
               @click="form.theme = t.id"
             >
-              <span class="theme-band" :style="{ background: t.accent }" />
+              <span class="theme-band" :style="{ background: t.band, borderColor: t.stamp }">
+                <span class="theme-dot" :style="{ borderColor: t.stamp }" />
+              </span>
               <span class="theme-name">{{ t.label }}</span>
             </button>
           </div>
@@ -319,22 +321,36 @@ onIonViewWillEnter(async () => {
   min-height: 64px;
   padding: 8px;
   border-radius: 12px;
-  border: 2px solid var(--tfek-line);
+  border: 1px solid var(--tfek-line);
   color: var(--tfek-text);
-  font: 600 13px/1 var(--ion-font-family);
+  font: 500 12px/1.2 var(--ion-font-family);
   text-align: left;
   cursor: pointer;
 }
 .theme.selected {
-  border-color: var(--tfek-text);
+  border-color: var(--t-accent);
+  box-shadow: inset 0 0 0 1px var(--t-accent);
 }
 .theme:focus-visible {
   outline: 2px solid var(--tfek-text);
   outline-offset: 2px;
 }
 .theme-band {
-  height: 22px;
+  position: relative;
+  height: 30px;
   border-radius: 6px;
+  border: 1px solid;
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 7px) !important;
+}
+/* Rappel du tampon */
+.theme-dot {
+  position: absolute;
+  right: 6px;
+  top: 5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid;
 }
 .hint {
   font-size: 0.85rem;

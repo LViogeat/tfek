@@ -23,10 +23,10 @@ where u.email in ('orga@test.fr', 'invite@test.fr');
 insert into public.events (id, slug, organizer_id, title, description, starts_at, location, theme) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'anniv-camille', '11111111-1111-1111-1111-111111111111',
    'Anniversaire de Camille 🎂', 'On fête mes 30 ans ! Ramenez de quoi grignoter, je m''occupe des boissons.',
-   date_trunc('day', now()) + interval '10 days 20 hours', 'Chez moi, 12 rue des Lilas, Lyon', 'braise'),
+   date_trunc('day', now()) + interval '10 days 20 hours', 'Chez moi, 12 rue des Lilas, Lyon', 'bordeaux'),
   ('aaaaaaaa-0000-0000-0000-000000000002', 'rando-vercors', '11111111-1111-1111-1111-111111111111',
    'Rando dans le Vercors', 'Boucle de 15 km, prévoir chaussures de marche et pique-nique.',
-   date_trunc('day', now()) + interval '24 days 8 hours', 'Parking de Corrençon-en-Vercors', 'foret');
+   date_trunc('day', now()) + interval '24 days 8 hours', 'Parking de Corrençon-en-Vercors', 'vert');
 
 insert into public.rsvps (event_id, user_id, status, display_name, plus_ones) values
   ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'going', 'Alex', 1);

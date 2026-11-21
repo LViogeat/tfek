@@ -331,7 +331,7 @@ watch([() => currentUser.value?.id, mergedVersion], () => void load())
 }
 .announce {
   margin: 16px 16px 0;
-  border: 1.5px solid var(--t-accent);
+  border: 1px solid color-mix(in srgb, var(--t-accent) 45%, transparent);
   border-radius: 14px;
   padding: 14px 16px;
 }

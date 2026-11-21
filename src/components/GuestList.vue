@@ -70,7 +70,7 @@ li {
 .avatar {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 9px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -79,17 +79,17 @@ li {
   font-weight: 700;
   background: var(--tfek-surface);
   color: var(--tfek-text);
-  border: 1.5px solid var(--tfek-line);
+  border: 1px solid var(--tfek-line);
 }
 .avatar.going {
   background: var(--t-accent);
   border-color: var(--t-accent);
-  color: var(--tfek-ink);
+  color: var(--t-on-accent);
 }
 .avatar.maybe {
-  background: var(--tfek-paper);
-  border-color: var(--tfek-paper);
-  color: var(--tfek-ink);
+  background: transparent;
+  border-color: var(--t-accent);
+  color: var(--t-accent);
 }
 .name {
   font-size: 16px;

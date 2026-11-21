@@ -186,11 +186,11 @@ async function submit() {
 }
 .pill {
   min-height: 48px;
-  border-radius: 12px;
-  border: 1.5px solid rgba(241, 237, 228, 0.5);
+  border-radius: 10px;
+  border: 1px solid rgba(244, 239, 230, 0.32);
   background: transparent;
   color: var(--tfek-text);
-  font: 600 15px/1.1 var(--ion-font-family);
+  font: 500 15px/1.1 var(--ion-font-family);
   padding: 0 6px;
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
@@ -201,7 +201,8 @@ async function submit() {
 .pill.selected {
   background: var(--t-accent);
   border-color: var(--t-accent);
-  color: var(--tfek-ink);
+  color: var(--t-on-accent);
+  font-weight: 700;
 }
 .pill:focus-visible {
   outline: 2px solid var(--tfek-text);

@@ -14,7 +14,7 @@ App d'events « comme Facebook avant », partagée par un lien dans WhatsApp/Mes
 - **Ne jamais ajouter de friction pour les invités** (pas de compte, pas d'e-mail obligatoire, pas d'étape en plus). C'est le principe n°1 du produit.
 - **On lit avant de répondre** : la réponse est dans une barre fixée en bas de la page d'event, jamais au-dessus de la description.
 - **UI en français, tutoiement**, ton simple et sobre : **pas de point d'exclamation ni d'emoji dans l'interface** (ni dans les messages de partage). Le fun passe par le design. Les commentaires de code sont aussi en français.
-- **Design « billet »** : voir `src/theme/variables.css` (tokens) et `src/lib/themes.ts` (6 thèmes par event). Réutilise les classes `.disp`, `.mono`, `.lbl`, `.section-title` et les variables `--t-bg` / `--t-accent` plutôt que des couleurs en dur.
+- **Design « billet »** : voir `src/theme/variables.css` (tokens) et `src/lib/themes.ts` (6 palettes chic par event). Réutilise les classes `.disp`, `.mono`, `.lbl`, `.section-title` et les variables `--t-bg`, `--t-band`, `--t-stamp`, `--t-accent`, `--t-on-accent` plutôt que des couleurs en dur. Le tampon de marque est le composant `TfekStamp`.
 - Pas de service payant sans en parler (SMS notamment) : les notifications passent par le partage depuis le téléphone de l'organisateur.
 - Commits en français, sur la branche de travail indiquée par la session.
 
@@ -46,7 +46,7 @@ src/
   lib/format.ts                        dates en français
   views/                               HomePage, EventPage, EventFormPage, LoginPage, AccountPage
   theme/variables.css                  thème sombre global, polices, tokens du style billet
-  components/                          EventTicket, RsvpBar (réponse fixée en bas, + Confetti), GuestList, EventListItem, RsvpBadge
+  components/                          EventTicket (+ TfekStamp), RsvpBar (réponse fixée en bas, + Confetti), GuestList, EventListItem, RsvpBadge
 tests/
   db.test.ts                           intégration sur la base locale (règles d'accès, fusion, slugs)
   ics.test.ts / format.test.ts         unitaires
@@ -75,7 +75,7 @@ Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris
 ## Pièges connus
 
 - **Ionic garde les pages en cache dans le DOM** : utilise `onIonViewWillEnter` (pas seulement `onMounted`) pour recharger. Dans les tests, cible `.ion-page:not(.ion-page-hidden) …`.
-- **Thème par page** : une variable CSS qui en référence une autre est résolue là où elle est déclarée. `themeStyle()` redéfinit donc aussi les variables Ionic (`--ion-background-color`, `--ion-color-primary`…) sur l'`ion-page`, pas seulement `--t-bg` / `--t-accent`.
+- **Thème par page** : une variable CSS qui en référence une autre est résolue là où elle est déclarée. `themeStyle()` redéfinit donc aussi les variables Ionic (`--ion-background-color`, `--ion-color-primary`…) sur l'`ion-page`, pas seulement les `--t-*`.
 - **Pas d'appel Supabase directement dans `onAuthStateChange`** (risque de blocage interne) : passe par `setTimeout`.
 - **Chargements concurrents** : `HomePage` et `EventPage` utilisent un compteur `loadSeq` pour ignorer les réponses obsolètes. Garde ce schéma.
 - Le helper `check()` de `events.ts` lève sur erreur ; `.single()` lève si 0 ligne (par exemple à cause de la RLS).

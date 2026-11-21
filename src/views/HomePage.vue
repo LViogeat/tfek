@@ -154,8 +154,8 @@ watch([() => currentUser.value?.id, mergedVersion], load)
   margin-top: 24px;
   padding: 5px 8px;
   border-radius: 6px;
-  background: var(--t-accent);
-  color: var(--tfek-ink);
+  border: 1px solid var(--t-accent);
+  color: var(--t-accent);
 }
 .hero h1 {
   font-size: 2.3rem;

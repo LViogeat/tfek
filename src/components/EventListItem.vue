@@ -1,6 +1,6 @@
 <template>
   <ion-item :router-link="`/e/${event.slug}`" detail>
-    <div slot="start" class="date-badge mono" :class="{ past: isPast }" :style="{ background: theme.accent }">
+    <div slot="start" class="date-badge mono" :class="{ past: isPast }" :style="{ background: theme.band, color: theme.stamp, borderColor: theme.stamp }">
       <span class="day">{{ day }}</span>
       <span class="month">{{ month }}</span>
     </div>
@@ -38,8 +38,8 @@ const theme = computed(() => getTheme(props.event.theme))
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: 10px;
-  color: var(--tfek-ink);
+  border-radius: 9px;
+  border: 1px solid;
   line-height: 1;
 }
 .date-badge.past {
