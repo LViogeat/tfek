@@ -54,7 +54,7 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
 Par ordre de priorité proposé :
 
 1. **Aperçu riche du lien dans WhatsApp** (titre, date, image) : nécessite des balises Open Graph rendues côté serveur pour `/e/:slug` (Edge Function Supabase ou fonction Vercel).
-2. **Mise en ligne** : projet Supabase cloud + hébergement statique (Vercel/Netlify), SMTP réel (Resend/Brevo), domaine.
+2. **Mise en ligne** : projet Supabase cloud + hébergement statique (Vercel), SMTP réel (Resend/Brevo), domaine. Pas-à-pas dans [`DEPLOIEMENT.md`](DEPLOIEMENT.md).
 3. **Poids du bundle** (~330 Ko gzip) : découpage, chargement différé.
 4. **Notifications optionnelles** : push web pour les invités, e-mail pour les comptes (nouvelle info, rappel la veille).
 5. **Image de couverture** (Supabase Storage).
