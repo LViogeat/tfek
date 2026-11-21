@@ -2,7 +2,7 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>tfek</ion-title>
+        <ion-title class="brand">tfek</ion-title>
         <ion-buttons slot="end">
           <ion-button v-if="isRegistered" router-link="/account" aria-label="Mon compte">
             <ion-icon slot="icon-only" :icon="personCircleOutline" />
@@ -19,7 +19,8 @@
 
       <div class="page-narrow">
         <div v-if="!isRegistered" class="hero ion-padding">
-          <h1>Tes events, sans le chaos du groupe WhatsApp</h1>
+          <div class="lbl hero-tag">Invitations sans compte</div>
+          <h1 class="disp">Tes events, sans le chaos du groupe WhatsApp</h1>
           <p class="muted">
             Crée un event en 30 secondes, partage le lien dans ta conversation et vois enfin qui vient.
             Tes invités répondent sans créer de compte.
@@ -31,6 +32,7 @@
         </div>
 
         <template v-if="isRegistered">
+          <h1 class="disp home-title">Tes events</h1>
           <div class="segment-wrap">
             <ion-segment v-model="tab">
               <ion-segment-button value="organized">
@@ -143,15 +145,30 @@ watch([() => currentUser.value?.id, mergedVersion], load)
 </script>
 
 <style scoped>
-.hero h1 {
-  font-size: 1.6rem;
-  font-weight: 700;
-  line-height: 1.25;
+.brand {
+  font-size: 1.35rem;
+  letter-spacing: -0.03em;
+}
+.hero-tag {
+  display: inline-block;
   margin-top: 24px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--t-accent);
+  color: var(--tfek-ink);
+}
+.hero h1 {
+  font-size: 2.3rem;
+  line-height: 1.02;
+  margin: 16px 0 12px;
 }
 .hero p {
   margin-bottom: 24px;
   line-height: 1.5;
+}
+.home-title {
+  font-size: 2rem;
+  margin: 20px 16px 0;
 }
 .empty {
   text-align: center;

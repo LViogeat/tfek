@@ -60,7 +60,7 @@ async function emailCode(email) {
   await g.getByRole('button', { name: /Oui/ }).click()
   await g.locator('ion-input input').first().fill('Jordan')
   await g.getByRole('button', { name: /Envoyer ma réponse/ }).click()
-  await g.getByText('C’est noté !', { exact: true }).waitFor()
+  await g.getByText('C’est noté.', { exact: true }).waitFor()
   check('invité : réponse sans compte', (await g.getByText('Jordan').count()) > 0)
   await g.screenshot({ path: `${OUT}/2-apres-reponse.png`, fullPage: true })
 

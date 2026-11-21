@@ -29,6 +29,7 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
    - Plus tard : events **publics découvrables**.
 6. **Web app d'abord** (PWA), avec **Ionic + Vue + Capacitor** pour publier sur les stores plus tard sans réécrire.
 7. **Plus tard, si l'app perce** : events sponsorisés.
+8. **Style « billet »** (choisi après plusieurs pistes de maquettes) : app toujours en sombre, chaque invitation est un billet d'entrée (bandeau de couleur, date et heure en police machine, ligne pointillée). L'organisateur choisit la couleur du billet parmi 6 thèmes. Le côté fun passe par le visuel, **pas par les textes** : ton sobre, **pas de point d'exclamation ni d'emoji dans l'interface** (les utilisateurs mettent ce qu'ils veulent dans leurs propres textes). Polices : Space Grotesk (titres), Inter (texte), JetBrains Mono (détails du billet), embarquées.
 
 ## Choix techniques et pourquoi
 
@@ -43,7 +44,7 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
 
 ## Ce qui existe (MVP v0.1)
 
-- Créer / modifier / annuler un event (titre, date, fin optionnelle, lieu, description, options de confidentialité)
+- Créer / modifier / annuler un event (titre, date, fin optionnelle, lieu, description, couleur du billet, options de confidentialité)
 - Page event : infos, ajout à l'agenda (.ics), lien carte, **dernière info mise en avant**, réponse Oui/Peut-être/Non + prénom + accompagnants, liste des invités groupée
 - Organisateur : publier une info puis la partager, inviter, relancer, supprimer une info
 - Comptes : code e-mail, fusion invité → compte, tableau de bord Organisés / Invitations, prénom modifiable

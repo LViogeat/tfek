@@ -119,6 +119,9 @@ create table public.events (
   ends_at timestamptz,
   location text check (char_length(location) <= 300),
   cover_url text,
+  -- Thème visuel du billet (couleurs de la page de l'event), voir src/lib/themes.ts
+  theme text not null default 'braise'
+    check (theme in ('braise', 'marine', 'foret', 'rouge', 'acier', 'sable')),
   -- Options de confidentialité (paramétrables, défauts = le plus simple)
   visibility public.event_visibility not null default 'link',
   show_guest_list boolean not null default true,
@@ -234,6 +237,7 @@ as $$
     'ends_at', e.ends_at,
     'location', e.location,
     'cover_url', e.cover_url,
+    'theme', e.theme,
     'visibility', e.visibility,
     'show_guest_list', e.show_guest_list,
     'allow_plus_ones', e.allow_plus_ones,

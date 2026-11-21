@@ -14,8 +14,8 @@ export default defineConfig({
         short_name: 'tfek',
         description: 'Organise tes events et sache qui vient.',
         lang: 'fr',
-        theme_color: '#6d28d9',
-        background_color: '#ffffff',
+        theme_color: '#1b1e21',
+        background_color: '#1b1e21',
         display: 'standalone',
         start_url: '/',
         icons: [

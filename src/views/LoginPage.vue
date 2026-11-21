@@ -11,7 +11,7 @@
 
     <ion-content class="ion-padding">
       <div class="page-narrow">
-        <h1>{{ headline }}</h1>
+        <h1 class="disp">{{ headline }}</h1>
         <p class="muted">{{ subline }}</p>
 
         <template v-if="step === 'email'">
@@ -156,8 +156,8 @@ watch(
 
 <style scoped>
 h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1.05;
   margin-top: 16px;
 }
 .no-margin-x {

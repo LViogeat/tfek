@@ -1,5 +1,5 @@
 <template>
-  <ion-page>
+  <ion-page :style="themeStyle(form.theme)">
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
@@ -56,6 +56,25 @@
             />
           </ion-item>
         </ion-list>
+
+        <fieldset class="themes">
+          <legend class="lbl muted">Couleur du billet</legend>
+          <div class="theme-grid">
+            <button
+              v-for="t in THEMES"
+              :key="t.id"
+              type="button"
+              class="theme"
+              :class="{ selected: form.theme === t.id }"
+              :aria-pressed="form.theme === t.id"
+              :style="{ background: t.bg }"
+              @click="form.theme = t.id"
+            >
+              <span class="theme-band" :style="{ background: t.accent }" />
+              <span class="theme-name">{{ t.label }}</span>
+            </button>
+          </div>
+        </fieldset>
 
         <ion-accordion-group class="ion-margin-horizontal">
           <ion-accordion value="advanced">
@@ -120,6 +139,7 @@ import { currentUser, isRegistered, initAuth } from '@/lib/auth'
 import { createEvent, getEventForEdit, updateEvent, type EventInput, type EventRow } from '@/lib/events'
 import { clearDraft, loadDraft, saveDraft } from '@/lib/draft'
 import { toLocalInput } from '@/lib/format'
+import { DEFAULT_THEME, THEMES, getTheme, themeStyle } from '@/lib/themes'
 
 const props = defineProps<{ slug?: string }>()
 const router = useRouter()
@@ -139,6 +159,7 @@ const form = reactive<Omit<EventInput, 'starts_at' | 'ends_at'>>({
   visibility: 'link',
   show_guest_list: true,
   allow_plus_ones: true,
+  theme: DEFAULT_THEME,
 })
 const startsAt = ref(defaultStart())
 const endsAt = ref('')
@@ -164,13 +185,14 @@ function toInput(): EventInput {
   }
 }
 
-function fill(e: EventInput) {
+function fill(e: Omit<EventInput, 'theme'> & { theme?: string | null }) {
   form.title = e.title
   form.description = e.description ?? ''
   form.location = e.location ?? ''
   form.visibility = e.visibility
   form.show_guest_list = e.show_guest_list
   form.allow_plus_ones = e.allow_plus_ones
+  form.theme = getTheme(e.theme).id
   startsAt.value = toLocalInput(e.starts_at)
   endsAt.value = e.ends_at ? toLocalInput(e.ends_at) : ''
   showEnd.value = !!e.ends_at
@@ -273,6 +295,47 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
+.themes {
+  border: 0;
+  margin: 8px 16px 16px;
+  padding: 0;
+  min-width: 0;
+}
+.themes legend {
+  padding: 0;
+  margin-bottom: 10px;
+}
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.theme {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 64px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 2px solid var(--tfek-line);
+  color: var(--tfek-text);
+  font: 600 13px/1 var(--ion-font-family);
+  text-align: left;
+  cursor: pointer;
+}
+.theme.selected {
+  border-color: var(--tfek-text);
+}
+.theme:focus-visible {
+  outline: 2px solid var(--tfek-text);
+  outline-offset: 2px;
+}
+.theme-band {
+  height: 22px;
+  border-radius: 6px;
+}
 .hint {
   font-size: 0.85rem;
   text-align: center;

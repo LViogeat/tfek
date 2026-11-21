@@ -1,47 +1,124 @@
-:root {
-  --ion-font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+/*
+ * Style « billet » : fond sombre, papier crème, une couleur d'accent.
+ * L'app est toujours en sombre. Chaque page d'event redéfinit --t-bg et --t-accent
+ * selon son thème (voir src/lib/themes.ts), ce qui recolore aussi les composants Ionic.
+ */
+:root,
+.ios body,
+.md body {
+  --t-bg: #1b1e21;
+  --t-accent: #ff6a1a;
 
-  --ion-color-primary: #6d28d9;
-  --ion-color-primary-rgb: 109, 40, 217;
-  --ion-color-primary-contrast: #ffffff;
-  --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #6023bf;
-  --ion-color-primary-tint: #7c3ddd;
+  --tfek-text: #f1ede4;
+  --tfek-muted: rgba(241, 237, 228, 0.68);
+  --tfek-line: rgba(241, 237, 228, 0.14);
+  --tfek-surface: rgba(241, 237, 228, 0.06);
+  --tfek-paper: #f1ede4;
+  --tfek-paper-line: #cfc8ba;
+  --tfek-paper-muted: #5e5a52;
+  --tfek-ink: #141414;
 
-  --ion-color-success: #16a34a;
-  --ion-color-success-rgb: 22, 163, 74;
-  --ion-color-success-contrast: #ffffff;
-  --ion-color-success-contrast-rgb: 255, 255, 255;
-  --ion-color-success-shade: #138f41;
-  --ion-color-success-tint: #2dac5c;
-  --ion-color-warning: #d97706;
-  --ion-color-warning-rgb: 217, 119, 6;
-  --ion-color-warning-contrast: #ffffff;
-  --ion-color-warning-contrast-rgb: 255, 255, 255;
-  --ion-color-warning-shade: #bf6905;
-  --ion-color-warning-tint: #dd851f;
-  --ion-color-danger: #dc2626;
+  --tfek-font-display: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
+  --tfek-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --ion-font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-  --tfek-surface: #f5f3ff;
-  --tfek-announce-bg: #fef3c7;
-  --tfek-announce-border: #f59e0b;
-  --tfek-muted: #6b7280;
+  --ion-background-color: var(--t-bg);
+  --ion-background-color-rgb: 27, 30, 33;
+  --ion-text-color: var(--tfek-text);
+  --ion-text-color-rgb: 241, 237, 228;
+  --ion-toolbar-background: var(--t-bg);
+  --ion-toolbar-border-color: transparent;
+  --ion-toolbar-color: var(--tfek-text);
+  --ion-item-background: transparent;
+  --ion-item-border-color: var(--tfek-line);
+  --ion-card-background: var(--tfek-surface);
+  --ion-tab-bar-background: var(--t-bg);
+
+  --ion-color-primary: var(--t-accent);
+  --ion-color-primary-rgb: 255, 106, 26;
+  --ion-color-primary-contrast: #141414;
+  --ion-color-primary-contrast-rgb: 20, 20, 20;
+  --ion-color-primary-shade: var(--t-accent);
+  --ion-color-primary-tint: var(--t-accent);
+
+  --ion-color-success: #b8e04a;
+  --ion-color-success-rgb: 184, 224, 74;
+  --ion-color-success-contrast: #141414;
+  --ion-color-success-contrast-rgb: 20, 20, 20;
+  --ion-color-success-shade: #a2c541;
+  --ion-color-success-tint: #bfe35c;
+
+  --ion-color-warning: #ffc23a;
+  --ion-color-warning-rgb: 255, 194, 58;
+  --ion-color-warning-contrast: #141414;
+  --ion-color-warning-contrast-rgb: 20, 20, 20;
+  --ion-color-warning-shade: #e0ab33;
+  --ion-color-warning-tint: #ffc84e;
+
+  --ion-color-danger: #ff4d4d;
+  --ion-color-danger-rgb: 255, 77, 77;
+  --ion-color-danger-contrast: #141414;
+  --ion-color-danger-contrast-rgb: 20, 20, 20;
+  --ion-color-danger-shade: #e04444;
+  --ion-color-danger-tint: #ff5f5f;
+
+  --ion-color-medium: #a9a59c;
+  --ion-color-medium-rgb: 169, 165, 156;
+  --ion-color-medium-contrast: #141414;
+  --ion-color-medium-contrast-rgb: 20, 20, 20;
+  --ion-color-medium-shade: #959189;
+  --ion-color-medium-tint: #b2aea6;
+
+  --ion-color-dark: #f1ede4;
+  --ion-color-dark-rgb: 241, 237, 228;
+  --ion-color-dark-contrast: #141414;
+  --ion-color-dark-contrast-rgb: 20, 20, 20;
+  --ion-color-dark-shade: #d4d1c9;
+  --ion-color-dark-tint: #f2efe7;
+
+  color-scheme: dark;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ion-color-primary: #a78bfa;
-    --ion-color-primary-rgb: 167, 139, 250;
-    --ion-color-primary-contrast: #1e1b4b;
-    --ion-color-primary-contrast-rgb: 30, 27, 75;
-    --ion-color-primary-shade: #9379dc;
-    --ion-color-primary-tint: #b097fb;
+body {
+  background: var(--t-bg);
+}
 
-    --tfek-surface: #1e1b2e;
-    --tfek-announce-bg: #3a2a0a;
-    --tfek-announce-border: #d97706;
-    --tfek-muted: #9ca3af;
-  }
+ion-toolbar {
+  --border-width: 0 !important;
+}
+ion-title {
+  font-family: var(--tfek-font-display);
+  font-weight: 700;
+}
+
+ion-button {
+  --border-radius: 12px;
+  --box-shadow: none;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+ion-button[fill='outline'] {
+  --border-width: 1.5px;
+}
+
+ion-list.list-inset,
+ion-list[inset] {
+  border-radius: 14px;
+  background: var(--tfek-surface);
+}
+ion-card {
+  box-shadow: none;
+  border-radius: 14px;
+}
+
+ion-segment {
+  --background: var(--tfek-surface);
+}
+ion-segment-button {
+  --indicator-color: var(--t-accent);
+  --color-checked: var(--tfek-ink);
+  font-weight: 600;
 }
 
 .page-narrow {
@@ -53,11 +130,35 @@
   color: var(--tfek-muted);
 }
 
-.section-title {
-  font-size: 0.8rem;
-  font-weight: 600;
+.disp {
+  font-family: var(--tfek-font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.mono {
+  font-family: var(--tfek-font-mono);
+}
+/* Petite étiquette façon billet : DATE, HEURE, LIEU… */
+.lbl {
+  font: 700 11px/1.2 var(--tfek-font-mono);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--tfek-muted);
-  margin: 24px 16px 8px;
+}
+
+.section-title {
+  font-family: var(--tfek-font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--tfek-text);
+  margin: 32px 16px 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
