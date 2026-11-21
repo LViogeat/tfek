@@ -214,22 +214,29 @@ const justCreated = computed(() => route.query.created === '1')
 const url = computed(() => eventUrl(props.slug))
 const showAccountNudge = computed(() => justAnswered.value && !isRegistered.value && !nudgeDismissed.value)
 
+// Plusieurs déclencheurs (entrée sur la page, réponse, changement de session, fusion) :
+// seule la réponse de la dernière requête est appliquée.
+let loadSeq = 0
+
 async function load() {
+  const seq = ++loadSeq
   loading.value = true
   try {
     const e = await getEvent(props.slug)
+    const [g, a] = e
+      ? await Promise.all([
+          e.show_guest_list || e.is_organizer ? getGuests(props.slug) : Promise.resolve([]),
+          getAnnouncements(props.slug),
+        ])
+      : [[], []]
+    if (seq !== loadSeq) return
     event.value = e
-    if (!e) return
-    const [g, a] = await Promise.all([
-      e.show_guest_list || e.is_organizer ? getGuests(props.slug) : Promise.resolve([]),
-      getAnnouncements(props.slug),
-    ])
     guests.value = g
     announcements.value = a
   } catch (err) {
-    await toast((err as Error).message, 'danger')
+    if (seq === loadSeq) await toast((err as Error).message, 'danger')
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 
@@ -304,8 +311,12 @@ async function removeAnnouncement(id: string) {
         text: 'Supprimer',
         role: 'destructive',
         handler: async () => {
-          await deleteAnnouncement(id)
-          announcements.value = announcements.value.filter((a) => a.id !== id)
+          try {
+            await deleteAnnouncement(id)
+            announcements.value = announcements.value.filter((a) => a.id !== id)
+          } catch (err) {
+            await toast(`L’info n’a pas pu être supprimée : ${(err as Error).message}`, 'danger')
+          }
         },
       },
     ],
@@ -313,9 +324,14 @@ async function removeAnnouncement(id: string) {
   await alert.present()
 }
 
-function addToCalendar() {
+async function addToCalendar() {
   if (!event.value) return
-  downloadIcs({ ...event.value, url: url.value })
+  try {
+    await downloadIcs({ ...event.value, url: url.value })
+  } catch (err) {
+    // Partage annulé par l'utilisateur en natif : rien à signaler
+    if (!/cancel/i.test((err as Error).message)) await toast((err as Error).message, 'danger')
+  }
 }
 
 onIonViewWillEnter(load)

@@ -109,20 +109,21 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton, IonButton,
   IonList, IonItem, IonInput, IonTextarea, IonLabel, IonIcon, IonToggle, IonSelect, IonSelectOption,
   IonAccordion, IonAccordionGroup, IonSpinner, alertController, toastController, onIonViewWillEnter,
 } from '@ionic/vue'
 import { closeOutline } from 'ionicons/icons'
-import { isRegistered, initAuth } from '@/lib/auth'
+import { currentUser, isRegistered, initAuth } from '@/lib/auth'
 import { createEvent, getEventForEdit, updateEvent, type EventInput, type EventRow } from '@/lib/events'
 import { clearDraft, loadDraft, saveDraft } from '@/lib/draft'
 import { toLocalInput } from '@/lib/format'
 
 const props = defineProps<{ slug?: string }>()
 const router = useRouter()
+const route = useRoute()
 
 function defaultStart(): string {
   const d = new Date()
@@ -197,7 +198,8 @@ async function submit() {
       router.back()
     } else if (!isRegistered.value) {
       saveDraft({ ...input, publishAfterLogin: true })
-      await router.push({ path: '/login', query: { redirect: '/new', reason: 'publish' } })
+      // Le retour de connexion passe par /new?publish=1 : seul ce retour publie le brouillon
+      await router.push({ path: '/login', query: { redirect: '/new?publish=1', reason: 'publish' } })
     } else {
       await publish(input)
     }
@@ -219,8 +221,12 @@ async function cancelEvent() {
         text: 'Oui, annuler',
         role: 'destructive',
         handler: async () => {
-          await updateEvent(original.value!.id, { cancelled_at: new Date().toISOString() })
-          await router.replace(`/e/${props.slug}`)
+          try {
+            await updateEvent(original.value!.id, { cancelled_at: new Date().toISOString() })
+            await router.replace(`/e/${props.slug}`)
+          } catch (e) {
+            await toast(`L’event n’a pas pu être annulé : ${(e as Error).message}`, 'danger')
+          }
         },
       },
     ],
@@ -231,7 +237,9 @@ async function cancelEvent() {
 onIonViewWillEnter(async () => {
   await initAuth()
   if (props.slug) {
-    const e = await getEventForEdit(props.slug)
+    const e = currentUser.value && isRegistered.value
+      ? await getEventForEdit(props.slug, currentUser.value.id).catch(() => null)
+      : null
     if (!e) {
       await toast('Event introuvable ou tu n’en es pas l’organisateur', 'danger')
       await router.replace('/')
@@ -244,16 +252,22 @@ onIonViewWillEnter(async () => {
   const draft = loadDraft()
   if (!draft) return
   fill(draft)
-  // De retour de la connexion : on publie directement le brouillon
-  if (draft.publishAfterLogin && isRegistered.value) {
-    saving.value = true
-    try {
-      await publish(toInput())
-    } catch (e) {
-      await toast((e as Error).message, 'danger')
-    } finally {
-      saving.value = false
-    }
+  const returningFromLogin = route.query.publish === '1'
+  if (!returningFromLogin || !draft.publishAfterLogin || !isRegistered.value) {
+    // Brouillon abandonné : on pré-remplit seulement, sans publier
+    if (draft.publishAfterLogin) saveDraft({ ...draft, publishAfterLogin: false })
+    return
+  }
+  // De retour de la connexion juste après « Publier » : on publie le brouillon (une seule tentative ;
+  // en cas d'échec le formulaire reste rempli et l'utilisateur peut republier)
+  saveDraft({ ...draft, publishAfterLogin: false })
+  saving.value = true
+  try {
+    await publish(toInput())
+  } catch (e) {
+    await toast((e as Error).message, 'danger')
+  } finally {
+    saving.value = false
   }
 })
 </script>

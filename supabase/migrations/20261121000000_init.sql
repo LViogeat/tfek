@@ -24,12 +24,24 @@ volatile
 set search_path = ''
 as $$
 declare
+  -- 57 caractères sans ambiguïté (pas de 0/O, 1/l/I)
   alphabet constant text := 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  bytes bytea := extensions.gen_random_bytes(len);
+  n constant int := length(alphabet);
+  -- Plus grand multiple de n <= 256 : on rejette les octets au-delà pour un tirage uniforme
+  cutoff constant int := 256 - (256 % n);
   result text := '';
+  bytes bytea;
+  b int;
 begin
-  for i in 0 .. len - 1 loop
-    result := result || substr(alphabet, (get_byte(bytes, i) % length(alphabet)) + 1, 1);
+  while length(result) < len loop
+    bytes := extensions.gen_random_bytes(len * 2);
+    for i in 0 .. length(bytes) - 1 loop
+      b := get_byte(bytes, i);
+      if b < cutoff then
+        result := result || substr(alphabet, (b % n) + 1, 1);
+        exit when length(result) = len;
+      end if;
+    end loop;
   end loop;
   return result;
 end;

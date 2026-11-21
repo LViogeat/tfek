@@ -88,8 +88,11 @@ export async function updateEvent(id: string, input: Partial<EventInput> & { can
   return check(await supabase.from('events').update(input).eq('id', id).select().single())
 }
 
-export async function getEventForEdit(slug: string): Promise<EventRow | null> {
-  return check(await supabase.from('events').select().eq('slug', slug).maybeSingle()) ?? null
+/** Event à modifier, uniquement si l'utilisateur en est l'organisateur. */
+export async function getEventForEdit(slug: string, userId: string): Promise<EventRow | null> {
+  return (
+    check(await supabase.from('events').select().eq('slug', slug).eq('organizer_id', userId).maybeSingle()) ?? null
+  )
 }
 
 export async function postAnnouncement(eventId: string, body: string) {

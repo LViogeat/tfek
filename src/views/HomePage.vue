@@ -84,7 +84,7 @@ import { ref, watch } from 'vue'
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
   IonSegment, IonSegmentButton, IonLabel, IonList, IonFab, IonFabButton,
-  IonRefresher, IonRefresherContent, onIonViewWillEnter,
+  IonRefresher, IonRefresherContent, onIonViewWillEnter, toastController,
 } from '@ionic/vue'
 import { addOutline, personCircleOutline, informationCircleOutline } from 'ionicons/icons'
 import EventListItem from '@/components/EventListItem.vue'
@@ -96,7 +96,12 @@ const organized = ref<EventRow[]>([])
 const invitations = ref<Invitation[]>([])
 const loading = ref(false)
 
+// Plusieurs déclencheurs (entrée sur la page, changement de session, fusion) :
+// seule la réponse de la dernière requête est appliquée.
+let loadSeq = 0
+
 async function load() {
+  const seq = ++loadSeq
   const user = currentUser.value
   if (!user) {
     organized.value = []
@@ -105,15 +110,26 @@ async function load() {
   }
   loading.value = true
   try {
+    const registered = isRegistered.value
     const [o, i] = await Promise.all([
-      isRegistered.value ? listOrganized(user.id) : Promise.resolve([]),
+      registered ? listOrganized(user.id) : Promise.resolve([]),
       listInvitations(user.id),
     ])
+    if (seq !== loadSeq) return
     organized.value = o
     invitations.value = i
-    if (isRegistered.value && o.length === 0 && i.length > 0) tab.value = 'invited'
+    if (registered && o.length === 0 && i.length > 0) tab.value = 'invited'
+  } catch (e) {
+    if (seq !== loadSeq) return
+    const t = await toastController.create({
+      message: `Impossible de charger tes events : ${(e as Error).message}`,
+      color: 'danger',
+      duration: 3000,
+      position: 'top',
+    })
+    await t.present()
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 

@@ -14,7 +14,7 @@ export function formatEventDate(startsAt: string, endsAt?: string | null): strin
     const end = new Date(endsAt)
     out += start.toDateString() === end.toDateString()
       ? ` – ${timeFmt.format(end)}`
-      : ` → ${dateFmt.format(end)} à ${timeFmt.format(end)}`
+      : ` → ${capitalize(dateFmt.format(end))} à ${timeFmt.format(end)}`
   }
   return out
 }

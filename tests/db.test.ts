@@ -171,3 +171,25 @@ describe('fusion invité → compte', () => {
     expect((await c.rpc('create_merge_token')).data).toBeNull()
   })
 })
+
+describe('identifiants aléatoires', () => {
+  it('les slugs utilisent tout l’alphabet de façon uniforme', async () => {
+    const orga = await user('orga@test.fr')
+    const rows = Array.from({ length: 200 }, (_, i) => ({
+      title: `Slug ${i}`,
+      starts_at: new Date(Date.now() + 86400e3).toISOString(),
+    }))
+    const { data, error } = await orga.from('events').insert(rows).select('id, slug')
+    expect(error).toBeNull()
+    const counts = new Map<string, number>()
+    for (const r of data!) for (const ch of r.slug) counts.set(ch, (counts.get(ch) ?? 0) + 1)
+    // 2000 caractères sur 57 symboles ≈ 35 chacun. Avec le biais modulo, les 28 premiers
+    // symboles sortaient ~25 % plus souvent : on compare les deux moitiés de l'alphabet.
+    const alphabet = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    const sum = (s: string) => [...s].reduce((n, c) => n + (counts.get(c) ?? 0), 0) / s.length
+    const ratio = sum(alphabet.slice(0, 28)) / sum(alphabet.slice(28))
+    expect(ratio).toBeGreaterThan(0.85)
+    expect(ratio).toBeLessThan(1.15)
+    await orga.from('events').delete().in('id', data!.map((r) => r.id))
+  })
+})

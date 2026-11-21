@@ -1,8 +1,8 @@
 import { Share } from '@capacitor/share'
+import { publicUrl } from './appUrl'
 
 export function eventUrl(slug: string): string {
-  const base = (import.meta.env.VITE_PUBLIC_URL as string | undefined) || window.location.origin
-  return `${base.replace(/\/$/, '')}/e/${slug}`
+  return publicUrl(`/e/${slug}`)
 }
 
 export function whatsappUrl(text: string): string {

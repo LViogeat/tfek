@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core'
+
 export interface IcsEvent {
   slug: string
   title: string
@@ -12,8 +14,36 @@ function toIcsDate(iso: string): string {
   return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
 }
 
-function escape(text: string): string {
-  return text.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\;')
+/** Échappement d'une valeur TEXT (RFC 5545 §3.3.11). */
+export function escapeText(text: string): string {
+  return text
+    .replace(/\r\n?/g, '\n')
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n')
+}
+
+/** Plie une ligne à 75 octets (RFC 5545 §3.1) sans couper un caractère UTF-8. */
+export function foldLine(line: string): string {
+  const encoder = new TextEncoder()
+  const parts: string[] = []
+  let current = ''
+  let bytes = 0
+  for (const ch of line) {
+    const size = encoder.encode(ch).length
+    // 75 octets pour la première ligne, 74 + l'espace de continuation ensuite
+    const limit = parts.length === 0 ? 75 : 74
+    if (bytes + size > limit) {
+      parts.push(current)
+      current = ''
+      bytes = 0
+    }
+    current += ch
+    bytes += size
+  }
+  parts.push(current)
+  return parts.join('\r\n ')
 }
 
 export function buildIcs(e: IcsEvent): string {
@@ -27,21 +57,41 @@ export function buildIcs(e: IcsEvent): string {
     `DTSTAMP:${toIcsDate(new Date().toISOString())}`,
     `DTSTART:${toIcsDate(e.starts_at)}`,
     `DTEND:${toIcsDate(end)}`,
-    `SUMMARY:${escape(e.title)}`,
-    `DESCRIPTION:${escape([e.description ?? '', e.url].filter(Boolean).join('\n\n'))}`,
-    e.location ? `LOCATION:${escape(e.location)}` : '',
+    `SUMMARY:${escapeText(e.title)}`,
+    `DESCRIPTION:${escapeText([e.description ?? '', e.url].filter(Boolean).join('\n\n'))}`,
+    e.location ? `LOCATION:${escapeText(e.location)}` : '',
     `URL:${e.url}`,
     'END:VEVENT',
     'END:VCALENDAR',
   ].filter(Boolean)
-  return lines.join('\r\n')
+  return lines.map(foldLine).join('\r\n') + '\r\n'
 }
 
-export function downloadIcs(e: IcsEvent) {
-  const blob = new Blob([buildIcs(e)], { type: 'text/calendar;charset=utf-8' })
+export async function downloadIcs(e: IcsEvent) {
+  const content = buildIcs(e)
+  const filename = `${e.slug}.ics`
+
+  if (Capacitor.isNativePlatform()) {
+    // Les WebViews natives ignorent les liens blob: + download : on écrit le fichier
+    // puis on ouvre la feuille de partage (qui propose l'agenda).
+    const [{ Filesystem, Directory, Encoding }, { Share }] = await Promise.all([
+      import('@capacitor/filesystem'),
+      import('@capacitor/share'),
+    ])
+    const { uri } = await Filesystem.writeFile({
+      path: filename,
+      data: content,
+      directory: Directory.Cache,
+      encoding: Encoding.UTF8,
+    })
+    await Share.share({ title: e.title, files: [uri] })
+    return
+  }
+
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `${e.slug}.ics`
+  a.download = filename
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }

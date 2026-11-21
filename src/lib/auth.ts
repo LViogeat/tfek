@@ -1,6 +1,7 @@
 import { computed, reactive, readonly, ref } from 'vue'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import { publicUrl } from './appUrl'
 
 const MERGE_TOKEN_KEY = 'tfek.mergeToken'
 
@@ -65,18 +66,27 @@ async function mergePendingGuest(): Promise<void> {
   if (!token || merging) return
   merging = true
   try {
-    const { error } = await supabase.rpc('merge_anonymous_user', { p_token: token })
+    const { data, error } = await supabase.rpc('merge_anonymous_user', { p_token: token })
     if (!error) {
+      // Succès, ou jeton expiré / déjà utilisé (0) : dans tous les cas il ne resservira pas
       localStorage.removeItem(MERGE_TOKEN_KEY)
-      mergedVersion.value++
+      if (data) mergedVersion.value++
+    } else if (error.code) {
+      // Erreur renvoyée par la base (droits, jeton invalide…) : réessayer ne changera rien
+      console.error('Fusion du compte invité impossible', error)
+      localStorage.removeItem(MERGE_TOKEN_KEY)
     }
+    // Sinon (pas de code = erreur réseau) : on garde le jeton pour le prochain démarrage.
+    // Il expire côté serveur au bout d'un jour, la tentative suivante le nettoiera.
+  } catch (e) {
+    console.error('Fusion du compte invité : erreur réseau', e)
   } finally {
     merging = false
   }
 }
 
 function redirectUrl(path: string): string {
-  return new URL(path, window.location.origin).toString()
+  return publicUrl(path)
 }
 
 export async function sendEmailCode(email: string, redirectPath: string) {
