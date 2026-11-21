@@ -20,7 +20,7 @@
       <div class="page-narrow">
         <div v-if="!isRegistered" class="hero ion-padding">
           <div class="lbl hero-tag">Invitations sans compte</div>
-          <h1 class="disp">Tes events, sans le chaos du groupe WhatsApp</h1>
+          <h1 class="disp">Tes events, sans le chaos des conversations de groupe</h1>
           <p class="muted">
             Crée un event en 30 secondes, partage le lien dans ta conversation et vois enfin qui vient.
             Tes invités répondent sans créer de compte.
