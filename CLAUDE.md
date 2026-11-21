@@ -3,6 +3,7 @@
 Contexte pour reprendre le projet dans une nouvelle session. À lire en entier avant de coder.
 
 - **Vision, décisions produit et feuille de route** : [`docs/PRODUIT.md`](docs/PRODUIT.md) — lis-le, il explique *pourquoi* les choses sont comme elles sont.
+- **Mise en ligne** : [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md).
 - **Démarrage et scripts** : [`README.md`](README.md).
 
 ## En une phrase
@@ -119,4 +120,7 @@ npm run build
 
 ## État actuel
 
-MVP v0.1 fonctionnel en local, non déployé. Prochaine étape proposée : aperçu riche du lien WhatsApp (Open Graph côté serveur), puis mise en ligne (Supabase cloud + Vercel). Détail et priorités dans [`docs/PRODUIT.md`](docs/PRODUIT.md#feuille-de-route).
+MVP v0.1 fonctionnel en local, design « billet chic » terminé et fusionné dans `main`, **non déployé**.
+
+- **Prochaine étape : mise en ligne de test** pour essayer l'app sur téléphone. Tout est préparé dans [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md) (deux options : Claude fait tout par API avec des jetons, ou pas-à-pas manuel ; `vercel.json` déjà en place). Une première tentative a échoué sur un mauvais jeton Supabase, voir le document.
+- Ensuite : aperçu riche du lien WhatsApp (Open Graph côté serveur). Détail et priorités dans [`docs/PRODUIT.md`](docs/PRODUIT.md#feuille-de-route).
