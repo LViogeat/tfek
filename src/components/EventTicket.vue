@@ -1,12 +1,9 @@
 <template>
   <article class="ticket" :class="{ cancelled: !!event.cancelled_at }">
     <header class="band">
-      <svg class="rings" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="46" />
-        <circle cx="50" cy="50" r="32" />
-        <circle cx="50" cy="50" r="18" />
-      </svg>
-      <div class="lbl">N° {{ event.slug.toUpperCase() }}</div>
+      <div class="frame" aria-hidden="true"></div>
+      <TfekStamp class="logo" />
+      <div class="lbl number">N° {{ event.slug.toUpperCase() }}</div>
       <h1 class="disp title">{{ event.title }}</h1>
       <div v-if="event.cancelled_at" class="stamp mono">Annulé</div>
     </header>
@@ -54,6 +51,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { IonIcon } from '@ionic/vue'
+import TfekStamp from './TfekStamp.vue'
 import { calendarOutline, mapOutline } from 'ionicons/icons'
 import type { EventDetails } from '@/lib/events'
 import { formatEventDate, mapsUrl, ticketDate, ticketTime } from '@/lib/format'
@@ -75,48 +73,66 @@ const time = computed(() => ticketTime(props.event.starts_at, props.event.ends_a
 .band {
   position: relative;
   overflow: hidden;
-  background: var(--t-accent);
-  color: var(--tfek-ink);
-  padding: 22px 20px 20px;
+  background-color: var(--t-band);
+  /* Fines rayures verticales, à peine visibles */
+  background-image: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--t-band-text) 4%, transparent) 0 1px,
+    transparent 1px 7px
+  );
+  color: var(--t-band-text);
+  padding: 26px 24px 24px;
+}
+/* Liseré intérieur, comme un carton gravé */
+.frame {
+  position: absolute;
+  inset: 10px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--t-band-text) 22%, transparent);
+  pointer-events: none;
+}
+.logo {
+  position: absolute;
+  right: 22px;
+  top: 20px;
+  width: 90px;
+  height: 90px;
+  transform: rotate(-12deg);
+  color: var(--t-stamp);
+}
+.number {
+  position: relative;
+  color: var(--t-stamp);
+  letter-spacing: 0.14em;
 }
 .title {
   position: relative;
-  margin: 28px 0 0;
-  padding-right: 40px;
-  font-size: clamp(1.75rem, 7.6vw, 2.5rem);
-  line-height: 1.05;
+  /* Sous le tampon : le titre garde toute la largeur */
+  margin: 72px 0 0;
+  font-size: clamp(1.7rem, 7.4vw, 2.4rem);
+  line-height: 1.06;
   letter-spacing: -0.05em;
+  /* Coupe seulement les mots trop longs pour la ligne, sans tiret automatique */
   overflow-wrap: break-word;
-  hyphens: auto;
 }
 .cancelled .title {
   text-decoration: line-through;
-  text-decoration-thickness: 3px;
-}
-.rings {
-  position: absolute;
-  right: -36px;
-  top: -36px;
-  width: 150px;
-  height: 150px;
-  fill: none;
-  stroke: var(--tfek-ink);
-  stroke-width: 2;
-  opacity: 0.9;
+  text-decoration-thickness: 2px;
 }
 .stamp {
   position: absolute;
   right: 18px;
   bottom: 18px;
   transform: rotate(-8deg);
-  border: 2.5px solid var(--tfek-ink);
+  border: 1.5px solid var(--t-stamp);
   border-radius: 6px;
   padding: 4px 10px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  background: var(--t-accent);
+  color: var(--t-stamp);
+  background: var(--t-band);
 }
 .fields {
   display: grid;
@@ -142,7 +158,7 @@ const time = computed(() => ticketTime(props.event.starts_at, props.event.ends_a
 }
 .perforation {
   position: relative;
-  border-top: 2px dashed var(--tfek-paper-line);
+  border-top: 1.5px dashed var(--tfek-paper-line);
   margin: 0 20px;
 }
 .perforation::before,

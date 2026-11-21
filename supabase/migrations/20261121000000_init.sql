@@ -120,8 +120,8 @@ create table public.events (
   location text check (char_length(location) <= 300),
   cover_url text,
   -- Thème visuel du billet (couleurs de la page de l'event), voir src/lib/themes.ts
-  theme text not null default 'braise'
-    check (theme in ('braise', 'marine', 'foret', 'rouge', 'acier', 'sable')),
+  theme text not null default 'noir'
+    check (theme in ('noir', 'bordeaux', 'vert', 'nuit', 'terre', 'ivoire')),
   -- Options de confidentialité (paramétrables, défauts = le plus simple)
   visibility public.event_visibility not null default 'link',
   show_guest_list boolean not null default true,

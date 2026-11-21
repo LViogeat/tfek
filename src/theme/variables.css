@@ -1,22 +1,27 @@
 /*
- * Style « billet » : fond sombre, papier crème, une couleur d'accent.
- * L'app est toujours en sombre. Chaque page d'event redéfinit --t-bg et --t-accent
+ * Style « billet », version chic : fonds profonds, papier ivoire, détails dorés.
+ * L'app est toujours en sombre. Chaque page d'event redéfinit les variables --t-*
  * selon son thème (voir src/lib/themes.ts), ce qui recolore aussi les composants Ionic.
  */
 :root,
 .ios body,
 .md body {
-  --t-bg: #1b1e21;
-  --t-accent: #ff6a1a;
+  /* Thème par défaut (« Noir et or ») ; chaque page d'event le remplace via themeStyle() */
+  --t-bg: #100f0e;
+  --t-band: #1a1816;
+  --t-band-text: #f4efe6;
+  --t-stamp: #c9a96e;
+  --t-accent: #c9a96e;
+  --t-on-accent: #1a1714;
 
-  --tfek-text: #f1ede4;
-  --tfek-muted: rgba(241, 237, 228, 0.68);
-  --tfek-line: rgba(241, 237, 228, 0.14);
-  --tfek-surface: rgba(241, 237, 228, 0.06);
-  --tfek-paper: #f1ede4;
-  --tfek-paper-line: #cfc8ba;
-  --tfek-paper-muted: #5e5a52;
-  --tfek-ink: #141414;
+  --tfek-text: #f4efe6;
+  --tfek-muted: rgba(244, 239, 230, 0.66);
+  --tfek-line: rgba(244, 239, 230, 0.12);
+  --tfek-surface: rgba(244, 239, 230, 0.05);
+  --tfek-paper: #f4efe6;
+  --tfek-paper-line: #d6cec0;
+  --tfek-paper-muted: #6e665b;
+  --tfek-ink: #1a1714;
 
   --tfek-font-mono: 'JetBrains Mono', ui-monospace, monospace;
   /* Une seule police, « machine », pour toute l'app (titres en 800, texte en 400/500) */
@@ -24,9 +29,9 @@
   --ion-font-family: var(--tfek-font-mono);
 
   --ion-background-color: var(--t-bg);
-  --ion-background-color-rgb: 27, 30, 33;
+  --ion-background-color-rgb: 16, 15, 14;
   --ion-text-color: var(--tfek-text);
-  --ion-text-color-rgb: 241, 237, 228;
+  --ion-text-color-rgb: 244, 239, 230;
   --ion-toolbar-background: var(--t-bg);
   --ion-toolbar-border-color: transparent;
   --ion-toolbar-color: var(--tfek-text);
@@ -36,46 +41,47 @@
   --ion-tab-bar-background: var(--t-bg);
 
   --ion-color-primary: var(--t-accent);
-  --ion-color-primary-rgb: 255, 106, 26;
-  --ion-color-primary-contrast: #141414;
-  --ion-color-primary-contrast-rgb: 20, 20, 20;
+  --ion-color-primary-rgb: 201, 169, 110;
+  --ion-color-primary-contrast: var(--t-on-accent);
+  --ion-color-primary-contrast-rgb: 26, 23, 20;
   --ion-color-primary-shade: var(--t-accent);
   --ion-color-primary-tint: var(--t-accent);
 
-  --ion-color-success: #b8e04a;
-  --ion-color-success-rgb: 184, 224, 74;
-  --ion-color-success-contrast: #141414;
-  --ion-color-success-contrast-rgb: 20, 20, 20;
-  --ion-color-success-shade: #a2c541;
-  --ion-color-success-tint: #bfe35c;
+  /* Statuts en teintes douces, accordées aux détails dorés */
+  --ion-color-success: #a9c49a;
+  --ion-color-success-rgb: 169, 196, 154;
+  --ion-color-success-contrast: #1a1714;
+  --ion-color-success-contrast-rgb: 26, 23, 20;
+  --ion-color-success-shade: #95ad88;
+  --ion-color-success-tint: #b2caa4;
 
-  --ion-color-warning: #ffc23a;
-  --ion-color-warning-rgb: 255, 194, 58;
-  --ion-color-warning-contrast: #141414;
-  --ion-color-warning-contrast-rgb: 20, 20, 20;
-  --ion-color-warning-shade: #e0ab33;
-  --ion-color-warning-tint: #ffc84e;
+  --ion-color-warning: #d9bb7f;
+  --ion-color-warning-rgb: 217, 187, 127;
+  --ion-color-warning-contrast: #1a1714;
+  --ion-color-warning-contrast-rgb: 26, 23, 20;
+  --ion-color-warning-shade: #bfa570;
+  --ion-color-warning-tint: #ddc28c;
 
-  --ion-color-danger: #ff4d4d;
-  --ion-color-danger-rgb: 255, 77, 77;
-  --ion-color-danger-contrast: #141414;
-  --ion-color-danger-contrast-rgb: 20, 20, 20;
-  --ion-color-danger-shade: #e04444;
-  --ion-color-danger-tint: #ff5f5f;
+  --ion-color-danger: #e08a7e;
+  --ion-color-danger-rgb: 224, 138, 126;
+  --ion-color-danger-contrast: #1a1714;
+  --ion-color-danger-contrast-rgb: 26, 23, 20;
+  --ion-color-danger-shade: #c57a6f;
+  --ion-color-danger-tint: #e3968b;
 
-  --ion-color-medium: #a9a59c;
-  --ion-color-medium-rgb: 169, 165, 156;
-  --ion-color-medium-contrast: #141414;
-  --ion-color-medium-contrast-rgb: 20, 20, 20;
-  --ion-color-medium-shade: #959189;
-  --ion-color-medium-tint: #b2aea6;
+  --ion-color-medium: #a8a197;
+  --ion-color-medium-rgb: 168, 161, 151;
+  --ion-color-medium-contrast: #1a1714;
+  --ion-color-medium-contrast-rgb: 26, 23, 20;
+  --ion-color-medium-shade: #948e85;
+  --ion-color-medium-tint: #b1aaa1;
 
-  --ion-color-dark: #f1ede4;
-  --ion-color-dark-rgb: 241, 237, 228;
-  --ion-color-dark-contrast: #141414;
-  --ion-color-dark-contrast-rgb: 20, 20, 20;
-  --ion-color-dark-shade: #d4d1c9;
-  --ion-color-dark-tint: #f2efe7;
+  --ion-color-dark: #f4efe6;
+  --ion-color-dark-rgb: 244, 239, 230;
+  --ion-color-dark-contrast: #1a1714;
+  --ion-color-dark-contrast-rgb: 26, 23, 20;
+  --ion-color-dark-shade: #d7d2ca;
+  --ion-color-dark-tint: #f5f1e9;
 
   color-scheme: dark;
 }
@@ -100,7 +106,7 @@ ion-button {
   letter-spacing: 0;
 }
 ion-button[fill='outline'] {
-  --border-width: 1.5px;
+  --border-width: 1px;
 }
 
 ion-list.list-inset,
@@ -118,7 +124,7 @@ ion-segment {
 }
 ion-segment-button {
   --indicator-color: var(--t-accent);
-  --color-checked: var(--tfek-ink);
+  --color-checked: var(--t-on-accent);
   font-weight: 600;
 }
 

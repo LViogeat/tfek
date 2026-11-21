@@ -6,7 +6,7 @@
 
 <script setup lang="ts">
 // Petite explosion de confettis jouée une seule fois (désactivée si l'utilisateur réduit les animations)
-const COLORS = ['var(--t-accent)', 'var(--tfek-paper)', 'var(--t-accent)', 'rgba(241, 237, 228, 0.55)']
+const COLORS = ['var(--t-accent)', 'var(--tfek-paper)', 'var(--t-stamp)', 'rgba(244, 239, 230, 0.55)']
 
 const pieces = Array.from({ length: 16 }, (_, i) => {
   const angle = (i / 16) * Math.PI - Math.PI // demi-cercle vers le haut
