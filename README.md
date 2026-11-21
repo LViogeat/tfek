@@ -5,6 +5,8 @@ Organise tes events comme sur Facebook à l’époque, mais depuis un simple lie
 - **Organisateur** : crée un event en 30 s, publie des infos importantes qui ne se noient pas dans la conversation, voit qui vient, relance.
 - **Invités** : répondent **sans compte** (juste un prénom). Ils peuvent créer un compte plus tard pour retrouver leurs events ; leurs réponses sont alors rattachées automatiquement.
 
+> 📄 **Documentation** : [vision produit, décisions et feuille de route](docs/PRODUIT.md) · [guide technique pour reprendre le projet](CLAUDE.md) (architecture, sécurité, pièges connus).
+
 ## Stack
 
 - **Front** : [Ionic](https://ionicframework.com/) + Vue 3 + TypeScript (Vite), PWA ; [Capacitor](https://capacitorjs.com/) prêt pour iOS/Android.
@@ -32,7 +34,8 @@ Studio Supabase (base de données) → http://127.0.0.1:54323.
 |---|---|
 | `npm run dev` | Serveur de dev |
 | `npm run build` | Vérification des types + build de production (`dist/`) |
-| `npm test` | Tests d’intégration sur la base locale (nécessite `db:start`) |
+| `npm test` | Tests unitaires + intégration sur la base locale (nécessite `db:start`) |
+| `npm run e2e` | Parcours complets dans un navigateur (nécessite `npm run dev` et Playwright) |
 | `npm run db:reset` | Réapplique les migrations et recharge `supabase/seed.sql` |
 | `npm run db:types` | Régénère `src/lib/database.types.ts` depuis le schéma |
 
@@ -47,7 +50,8 @@ src/
   lib/             client Supabase, auth (invités anonymes + fusion), accès aux données, partage
   views/           pages (accueil, event, création/édition, connexion, compte)
   components/      carte de réponse, liste des invités…
-tests/             tests d’intégration de la base (règles d’accès, parcours invité → compte)
+tests/             tests d’intégration de la base, unitaires, et e2e/ (navigateur)
+docs/PRODUIT.md    vision, décisions, feuille de route
 ```
 
 ## Choix d’architecture
@@ -58,11 +62,15 @@ tests/             tests d’intégration de la base (règles d’accès, parcou
 - **Création d’event** : réservée aux comptes inscrits. On laisse remplir le formulaire d’abord, le compte est demandé au moment de publier, puis l’event est publié automatiquement.
 - **Notifications gratuites** : les annonces et relances se partagent depuis le téléphone de l’organisateur (WhatsApp, SMS, partage natif), dans la conversation existante.
 
+## Repartir de zéro
+
+```bash
+npm run db:reset   # base propre + données de test
+rm -f .env.local && cp .env.example .env.local
+```
+
+Dans le navigateur, vide le stockage local du site (session et brouillon) pour revenir en visiteur anonyme.
+
 ## Prochaines étapes
 
-- Aperçu riche du lien dans WhatsApp (balises Open Graph rendues côté serveur pour `/e/:slug`)
-- Notifications push web pour les invités qui le souhaitent, e-mail pour les comptes
-- Image de couverture (Supabase Storage)
-- Connexion Google en production (provider à configurer, puis `VITE_ENABLE_GOOGLE=true`)
-- Déploiement : projet Supabase cloud + hébergement statique (Vercel / Netlify)
-- Events publics découvrables, puis events sponsorisés
+Voir la [feuille de route](docs/PRODUIT.md#feuille-de-route).
