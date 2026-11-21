@@ -36,13 +36,13 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 export function invitationText(title: string, url: string): string {
-  return `Tu es invité·e à « ${title} » 🎉\nDis-moi si tu viens (pas besoin de compte) 👉 ${url}`
+  return `Tu es invité·e à « ${title} ».\nDis-moi si tu viens, pas besoin de compte : ${url}`
 }
 
 export function announcementText(title: string, body: string, url: string): string {
-  return `📢 ${title}\n${body}\n\nInfos et réponses 👉 ${url}`
+  return `Info pour « ${title} »\n${body}\n\nInfos et réponses : ${url}`
 }
 
 export function reminderText(title: string, url: string): string {
-  return `Petit rappel pour « ${title} » 🙏 Si ce n’est pas déjà fait, dis-moi si tu viens 👉 ${url}`
+  return `Petit rappel pour « ${title} ». Si ce n’est pas déjà fait, dis-moi si tu viens : ${url}`
 }

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { Database } from './database.types'
+import type { ThemeId } from './themes'
 
 export type RsvpStatus = Database['public']['Enums']['rsvp_status']
 export type EventVisibility = Database['public']['Enums']['event_visibility']
@@ -14,6 +15,7 @@ export interface EventDetails {
   ends_at: string | null
   location: string | null
   cover_url: string | null
+  theme: string
   visibility: EventVisibility
   show_guest_list: boolean
   allow_plus_ones: boolean
@@ -48,6 +50,7 @@ export interface EventInput {
   visibility: EventVisibility
   show_guest_list: boolean
   allow_plus_ones: boolean
+  theme: ThemeId
 }
 
 /** Lève une erreur Supabase ; sans erreur, `data` est présent (sauf maybeSingle / RPC nullable). */

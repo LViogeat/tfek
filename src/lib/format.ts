@@ -43,3 +43,22 @@ export function toLocalInput(iso: string): string {
 export function mapsUrl(location: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
 }
+
+const dayShortFmt = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' })
+
+/** Date façon billet : « MAR 01.12 ». */
+export function ticketDate(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const day = dayShortFmt.format(d).replace('.', '').toUpperCase()
+  return `${day} ${pad(d.getDate())}.${pad(d.getMonth() + 1)}`
+}
+
+/** Heure façon billet : « 20:00 » ou « 20:00 – 23:00 ». `null` si l'event dure plusieurs jours. */
+export function ticketTime(startsAt: string, endsAt?: string | null): string | null {
+  const start = new Date(startsAt)
+  if (!endsAt) return timeFmt.format(start)
+  const end = new Date(endsAt)
+  if (start.toDateString() !== end.toDateString()) return null
+  return `${timeFmt.format(start)} – ${timeFmt.format(end)}`
+}

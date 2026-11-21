@@ -1,5 +1,5 @@
 <template>
-  <ion-badge :color="meta.color">{{ meta.label }}</ion-badge>
+  <ion-badge class="mono" :color="meta.color">{{ meta.label }}</ion-badge>
 </template>
 
 <script setup lang="ts">
@@ -17,3 +17,17 @@ const META: Record<RsvpStatus, { label: string; color: string }> = {
 
 const meta = computed(() => META[props.status])
 </script>
+
+<style scoped>
+ion-badge {
+  --padding-start: 8px;
+  --padding-end: 8px;
+  --padding-top: 5px;
+  --padding-bottom: 5px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+</style>

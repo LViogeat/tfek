@@ -12,7 +12,9 @@ App d'events « comme Facebook avant », partagée par un lien dans WhatsApp/Mes
 ## Règles à respecter
 
 - **Ne jamais ajouter de friction pour les invités** (pas de compte, pas d'e-mail obligatoire, pas d'étape en plus). C'est le principe n°1 du produit.
-- **UI en français, tutoiement**, ton simple et chaleureux. Les commentaires de code sont aussi en français.
+- **On lit avant de répondre** : la réponse est dans une barre fixée en bas de la page d'event, jamais au-dessus de la description.
+- **UI en français, tutoiement**, ton simple et sobre : **pas de point d'exclamation ni d'emoji dans l'interface** (ni dans les messages de partage). Le fun passe par le design. Les commentaires de code sont aussi en français.
+- **Design « billet »** : voir `src/theme/variables.css` (tokens) et `src/lib/themes.ts` (6 thèmes par event). Réutilise les classes `.disp`, `.mono`, `.lbl`, `.section-title` et les variables `--t-bg` / `--t-accent` plutôt que des couleurs en dur.
 - Pas de service payant sans en parler (SMS notamment) : les notifications passent par le partage depuis le téléphone de l'organisateur.
 - Commits en français, sur la branche de travail indiquée par la session.
 
@@ -40,9 +42,11 @@ src/
   lib/share.ts / shareSheet.ts         textes pré-rédigés + feuille WhatsApp / SMS / natif / copier
   lib/ics.ts                           export agenda (RFC 5545 ; partage de fichier en natif)
   lib/draft.ts                         brouillon d'event (localStorage) pendant la connexion
+  lib/themes.ts                        thèmes des billets (doit rester aligné avec la contrainte events.theme)
   lib/format.ts                        dates en français
   views/                               HomePage, EventPage, EventFormPage, LoginPage, AccountPage
-  components/                          RsvpCard, GuestList, EventListItem, RsvpBadge
+  theme/variables.css                  thème sombre global, polices, tokens du style billet
+  components/                          EventTicket, RsvpBar (réponse fixée en bas, + Confetti), GuestList, EventListItem, RsvpBadge
 tests/
   db.test.ts                           intégration sur la base locale (règles d'accès, fusion, slugs)
   ics.test.ts / format.test.ts         unitaires
@@ -71,6 +75,7 @@ Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris
 ## Pièges connus
 
 - **Ionic garde les pages en cache dans le DOM** : utilise `onIonViewWillEnter` (pas seulement `onMounted`) pour recharger. Dans les tests, cible `.ion-page:not(.ion-page-hidden) …`.
+- **Thème par page** : une variable CSS qui en référence une autre est résolue là où elle est déclarée. `themeStyle()` redéfinit donc aussi les variables Ionic (`--ion-background-color`, `--ion-color-primary`…) sur l'`ion-page`, pas seulement `--t-bg` / `--t-accent`.
 - **Pas d'appel Supabase directement dans `onAuthStateChange`** (risque de blocage interne) : passe par `setTimeout`.
 - **Chargements concurrents** : `HomePage` et `EventPage` utilisent un compteur `loadSeq` pour ignorer les réponses obsolètes. Garde ce schéma.
 - Le helper `check()` de `events.ts` lève sur erreur ; `.single()` lève si 0 ligne (par exemple à cause de la RLS).
@@ -105,7 +110,7 @@ Le premier `supabase start` télécharge les images (quelques minutes). Si un `d
 
 ```bash
 npm run typecheck
-npm run db:reset && npm test        # 18 tests, base locale requise
+npm run db:reset && npm test        # 20 tests, base locale requise
 npm run db:reset && npm run e2e     # serveur dev lancé ; captures dans tests/e2e/shots/
 npm run build
 ```

@@ -1,26 +1,25 @@
 <template>
-  <div>
+  <div class="guests">
     <template v-for="group in groups" :key="group.status">
-      <ion-list v-if="group.guests.length" inset>
-        <ion-list-header class="group-header">
-          <ion-label>{{ group.label }} · {{ group.total }}</ion-label>
-        </ion-list-header>
-        <ion-item v-for="g in group.guests" :key="g.display_name + g.updated_at">
-          <div slot="start" class="avatar" :class="group.status">{{ initials(g.display_name) }}</div>
-          <ion-label>
-            {{ g.display_name }}<span v-if="g.is_me" class="muted"> (toi)</span>
-            <span v-if="g.plus_ones" class="muted"> +{{ g.plus_ones }}</span>
-          </ion-label>
-        </ion-item>
-      </ion-list>
+      <div v-if="group.guests.length" class="group">
+        <h3 class="lbl group-title">{{ group.label }} · {{ group.total }}</h3>
+        <ul>
+          <li v-for="g in group.guests" :key="g.display_name + g.updated_at">
+            <span class="avatar mono" :class="group.status">{{ initials(g.display_name) }}</span>
+            <span class="name">
+              {{ g.display_name }}<span v-if="g.is_me" class="muted"> (toi)</span>
+              <span v-if="g.plus_ones" class="muted"> +{{ g.plus_ones }}</span>
+            </span>
+          </li>
+        </ul>
+      </div>
     </template>
-    <p v-if="guests.length === 0" class="muted ion-padding-horizontal">Personne n’a encore répondu.</p>
+    <p v-if="guests.length === 0" class="muted empty">Personne n’a encore répondu.</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { IonList, IonListHeader, IonItem, IonLabel } from '@ionic/vue'
 import type { Guest, RsvpStatus } from '@/lib/events'
 
 const props = defineProps<{ guests: Guest[] }>()
@@ -46,27 +45,56 @@ function initials(name: string): string {
 </script>
 
 <style scoped>
-.group-header {
-  font-size: 0.95rem;
-  font-weight: 600;
-  min-height: 36px;
+.guests {
+  padding: 0 16px;
+}
+.group + .group {
+  margin-top: 20px;
+}
+.group-title {
+  margin: 0 0 6px;
+  color: var(--tfek-muted);
+}
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--tfek-line);
 }
 .avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #fff;
-  background: var(--ion-color-medium);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--tfek-surface);
+  color: var(--tfek-text);
+  border: 1.5px solid var(--tfek-line);
 }
 .avatar.going {
-  background: var(--ion-color-success);
+  background: var(--t-accent);
+  border-color: var(--t-accent);
+  color: var(--tfek-ink);
 }
 .avatar.maybe {
-  background: var(--ion-color-warning);
+  background: var(--tfek-paper);
+  border-color: var(--tfek-paper);
+  color: var(--tfek-ink);
+}
+.name {
+  font-size: 16px;
+}
+.empty {
+  margin: 0;
 }
 </style>
