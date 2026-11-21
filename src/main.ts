@@ -15,8 +15,10 @@ import '@ionic/vue/css/palettes/dark.always.css'
 // Polices embarquées (fonctionnent hors ligne dans la PWA)
 import '@fontsource-variable/inter'
 import '@fontsource-variable/space-grotesk'
+import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/500.css'
 import '@fontsource/jetbrains-mono/700.css'
+import '@fontsource/jetbrains-mono/800.css'
 import './theme/variables.css'
 
 const app = createApp(App).use(IonicVue, { mode: 'ios' }).use(router)

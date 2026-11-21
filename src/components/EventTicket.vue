@@ -1,13 +1,13 @@
 <template>
   <article class="ticket" :class="{ cancelled: !!event.cancelled_at }">
     <header class="band">
-      <div class="lbl">N° {{ event.slug.toUpperCase() }}</div>
-      <h1 class="disp title">{{ event.title }}</h1>
       <svg class="rings" viewBox="0 0 100 100" aria-hidden="true">
         <circle cx="50" cy="50" r="46" />
         <circle cx="50" cy="50" r="32" />
         <circle cx="50" cy="50" r="18" />
       </svg>
+      <div class="lbl">N° {{ event.slug.toUpperCase() }}</div>
+      <h1 class="disp title">{{ event.title }}</h1>
       <div v-if="event.cancelled_at" class="stamp mono">Annulé</div>
     </header>
 
@@ -82,11 +82,12 @@ const time = computed(() => ticketTime(props.event.starts_at, props.event.ends_a
 .title {
   position: relative;
   margin: 28px 0 0;
-  padding-right: 56px;
-  font-size: clamp(2.1rem, 9vw, 2.9rem);
-  line-height: 1;
-  letter-spacing: -0.03em;
-  overflow-wrap: anywhere;
+  padding-right: 40px;
+  font-size: clamp(1.75rem, 7.6vw, 2.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.05em;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 .cancelled .title {
   text-decoration: line-through;
@@ -169,14 +170,15 @@ const time = computed(() => ticketTime(props.event.starts_at, props.event.ends_a
 .action {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-height: 44px;
-  padding: 0 12px;
+  padding: 0 8px;
+  white-space: nowrap;
   border: 0;
   border-radius: 10px;
   background: transparent;
   color: var(--tfek-ink);
-  font: 600 14px/1 var(--ion-font-family);
+  font: 600 13px/1 var(--ion-font-family);
   text-decoration: none;
   cursor: pointer;
 }

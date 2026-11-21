@@ -18,9 +18,11 @@
   --tfek-paper-muted: #5e5a52;
   --tfek-ink: #141414;
 
-  --tfek-font-display: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
   --tfek-font-mono: 'JetBrains Mono', ui-monospace, monospace;
-  --ion-font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Essai : police « machine » du billet partout. Pour revenir en arrière :
+     display = 'Space Grotesk Variable', texte = 'Inter Variable' (polices toujours importées dans main.ts) */
+  --tfek-font-display: var(--tfek-font-mono);
+  --ion-font-family: var(--tfek-font-mono);
 
   --ion-background-color: var(--t-bg);
   --ion-background-color-rgb: 27, 30, 33;
@@ -132,8 +134,8 @@ ion-segment-button {
 
 .disp {
   font-family: var(--tfek-font-display);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 .mono {
   font-family: var(--tfek-font-mono);
@@ -148,8 +150,8 @@ ion-segment-button {
 .section-title {
   font-family: var(--tfek-font-display);
   font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  letter-spacing: -0.04em;
   color: var(--tfek-text);
   margin: 32px 16px 12px;
 }

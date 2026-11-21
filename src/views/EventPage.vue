@@ -35,9 +35,9 @@
         <!-- Juste après la création : on pousse l'organisateur à partager -->
         <div v-if="justCreated && event.is_organizer" class="created">
           <p class="disp created-title">Ton event est en ligne.</p>
-          <p class="muted">Partage le lien dans ta conversation WhatsApp ou Messenger pour que tes invités répondent.</p>
+          <p class="muted">Partage le lien dans ta conversation de groupe pour que tes invités répondent.</p>
           <ion-button expand="block" @click="shareInvitation">
-            <ion-icon slot="start" :icon="logoWhatsapp" />
+            <ion-icon slot="start" :icon="shareOutline" />
             Inviter mes amis
           </ion-button>
         </div>
@@ -155,7 +155,7 @@ import {
   IonRefresher, IonRefresherContent, alertController, toastController, onIonViewWillEnter,
 } from '@ionic/vue'
 import {
-  megaphoneOutline, shareOutline, createOutline, trashOutline, notificationsOutline, logoWhatsapp,
+  megaphoneOutline, shareOutline, createOutline, trashOutline, notificationsOutline,
 } from 'ionicons/icons'
 import EventTicket from '@/components/EventTicket.vue'
 import RsvpCard from '@/components/RsvpCard.vue'
