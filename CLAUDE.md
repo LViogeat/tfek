@@ -12,6 +12,7 @@ App d'events « comme Facebook avant », partagée par un lien dans WhatsApp/Mes
 ## Règles à respecter
 
 - **Ne jamais ajouter de friction pour les invités** (pas de compte, pas d'e-mail obligatoire, pas d'étape en plus). C'est le principe n°1 du produit.
+- **On lit avant de répondre** : la réponse est dans une barre fixée en bas de la page d'event, jamais au-dessus de la description.
 - **UI en français, tutoiement**, ton simple et sobre : **pas de point d'exclamation ni d'emoji dans l'interface** (ni dans les messages de partage). Le fun passe par le design. Les commentaires de code sont aussi en français.
 - **Design « billet »** : voir `src/theme/variables.css` (tokens) et `src/lib/themes.ts` (6 thèmes par event). Réutilise les classes `.disp`, `.mono`, `.lbl`, `.section-title` et les variables `--t-bg` / `--t-accent` plutôt que des couleurs en dur.
 - Pas de service payant sans en parler (SMS notamment) : les notifications passent par le partage depuis le téléphone de l'organisateur.
@@ -45,7 +46,7 @@ src/
   lib/format.ts                        dates en français
   views/                               HomePage, EventPage, EventFormPage, LoginPage, AccountPage
   theme/variables.css                  thème sombre global, polices, tokens du style billet
-  components/                          EventTicket, RsvpCard (+ Confetti), GuestList, EventListItem, RsvpBadge
+  components/                          EventTicket, RsvpBar (réponse fixée en bas, + Confetti), GuestList, EventListItem, RsvpBadge
 tests/
   db.test.ts                           intégration sur la base locale (règles d'accès, fusion, slugs)
   ics.test.ts / format.test.ts         unitaires

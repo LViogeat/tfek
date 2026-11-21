@@ -54,23 +54,6 @@
           <p>{{ announcements[0]!.body }}</p>
         </div>
 
-        <RsvpCard
-          v-if="!event.cancelled_at && !event.is_organizer"
-          :slug="slug"
-          :my-rsvp="event.my_rsvp"
-          :allow-plus-ones="event.allow_plus_ones"
-          @answered="onAnswered"
-        />
-
-        <div v-if="showAccountNudge" class="nudge">
-          <p><strong>C’est noté.</strong> Ta réponse est enregistrée sur cet appareil.</p>
-          <p class="muted">Crée un compte (optionnel) pour retrouver tes events partout et être prévenu des nouvelles infos.</p>
-          <div class="nudge-actions">
-            <ion-button size="small" :router-link="`/login?redirect=/e/${slug}`">Créer mon compte</ion-button>
-            <ion-button size="small" fill="clear" color="medium" @click="nudgeDismissed = true">Plus tard</ion-button>
-          </div>
-        </div>
-
         <template v-if="event.description">
           <h2 class="section-title">Le mot de {{ event.organizer_name }}</h2>
           <p class="description">{{ event.description }}</p>
@@ -143,6 +126,18 @@
         </div>
       </div>
     </ion-content>
+
+    <ion-footer v-if="event && !event.cancelled_at && !event.is_organizer" class="ion-no-border">
+      <RsvpBar :slug="slug" :my-rsvp="event.my_rsvp" :allow-plus-ones="event.allow_plus_ones" @answered="onAnswered">
+        <div v-if="showAccountNudge" class="nudge">
+          <p><strong>C’est noté.</strong> Crée un compte (optionnel) pour retrouver tes events partout.</p>
+          <div class="nudge-actions">
+            <ion-button size="small" :router-link="`/login?redirect=/e/${slug}`">Créer mon compte</ion-button>
+            <ion-button size="small" fill="clear" color="medium" @click="nudgeDismissed = true">Plus tard</ion-button>
+          </div>
+        </div>
+      </RsvpBar>
+    </ion-footer>
   </ion-page>
 </template>
 
@@ -150,7 +145,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  IonPage, IonHeader, IonToolbar, IonContent, IonButtons, IonBackButton, IonButton, IonIcon,
+  IonPage, IonHeader, IonToolbar, IonContent, IonFooter, IonButtons, IonBackButton, IonButton, IonIcon,
   IonTextarea, IonSpinner,
   IonRefresher, IonRefresherContent, alertController, toastController, onIonViewWillEnter,
 } from '@ionic/vue'
@@ -158,7 +153,7 @@ import {
   megaphoneOutline, shareOutline, createOutline, trashOutline, notificationsOutline,
 } from 'ionicons/icons'
 import EventTicket from '@/components/EventTicket.vue'
-import RsvpCard from '@/components/RsvpCard.vue'
+import RsvpBar from '@/components/RsvpBar.vue'
 import GuestList from '@/components/GuestList.vue'
 import { currentUser, isRegistered, mergedVersion } from '@/lib/auth'
 import {
@@ -350,14 +345,14 @@ watch([() => currentUser.value?.id, mergedVersion], () => void load())
   font-size: 16px;
 }
 .nudge {
-  margin: 16px 16px 0;
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: var(--tfek-surface);
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--tfek-line);
 }
 .nudge p {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   line-height: 1.45;
+  font-size: 14px;
 }
 .nudge-actions {
   display: flex;
