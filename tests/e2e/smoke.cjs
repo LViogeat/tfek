@@ -61,7 +61,12 @@ async function emailCode(email) {
   await g.locator('ion-input input').first().fill('Jordan')
   await g.getByRole('button', { name: /Envoyer ma réponse/ }).click()
   await g.getByText('C’est noté.', { exact: true }).waitFor()
-  check('invité : réponse sans compte', (await g.getByText('Jordan').count()) > 0)
+  // La liste des invités se recharge juste après le message : on attend qu'elle contienne Jordan
+  const listed = await visible(g, '.guests')
+    .getByText('Jordan')
+    .waitFor({ timeout: 5000 })
+    .then(() => true, () => false)
+  check('invité : réponse sans compte', listed)
   await g.screenshot({ path: `${OUT}/2-apres-reponse.png`, fullPage: true })
 
   // 2. L'invité crée son compte avec le code e-mail → sa réponse est conservée

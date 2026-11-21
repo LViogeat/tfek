@@ -29,7 +29,7 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
    - Plus tard : events **publics découvrables**.
 6. **Web app d'abord** (PWA), avec **Ionic + Vue + Capacitor** pour publier sur les stores plus tard sans réécrire.
 7. **Plus tard, si l'app perce** : events sponsorisés.
-8. **Style « billet »** (choisi après plusieurs pistes de maquettes) : app toujours en sombre, chaque invitation est un billet d'entrée (bandeau de couleur, date et heure en police machine, ligne pointillée). L'organisateur choisit la couleur du billet parmi 6 thèmes. Le côté fun passe par le visuel, **pas par les textes** : ton sobre, **pas de point d'exclamation ni d'emoji dans l'interface** (les utilisateurs mettent ce qu'ils veulent dans leurs propres textes). Polices : Space Grotesk (titres), Inter (texte), JetBrains Mono (détails du billet), embarquées.
+8. **Style « billet »** (choisi après plusieurs pistes de maquettes) : app toujours en sombre, chaque invitation est un billet d'entrée (bandeau de couleur, date et heure en police machine, ligne pointillée). L'organisateur choisit la couleur du billet parmi 6 thèmes. Le côté fun passe par le visuel, **pas par les textes** : ton sobre, **pas de point d'exclamation ni d'emoji dans l'interface** (les utilisateurs mettent ce qu'ils veulent dans leurs propres textes). Police unique : JetBrains Mono (titres en gras serré, texte, détails du billet), embarquée.
 
 ## Choix techniques et pourquoi
 

@@ -19,8 +19,7 @@
   --tfek-ink: #141414;
 
   --tfek-font-mono: 'JetBrains Mono', ui-monospace, monospace;
-  /* Essai : police « machine » du billet partout. Pour revenir en arrière :
-     display = 'Space Grotesk Variable', texte = 'Inter Variable' (polices toujours importées dans main.ts) */
+  /* Une seule police, « machine », pour toute l'app (titres en 800, texte en 400/500) */
   --tfek-font-display: var(--tfek-font-mono);
   --ion-font-family: var(--tfek-font-mono);
 
