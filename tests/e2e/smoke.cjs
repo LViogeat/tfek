@@ -88,11 +88,11 @@ async function emailCode(email) {
   // 3. Organisateur : remplit l'event, se connecte, l'event est publié automatiquement
   const o = await newPage()
   await o.goto(`${BASE}/`)
-  await button(o, 'Créer un event').click()
+  await button(o, 'Créer un événement').click()
   await o.locator(titleInput).fill('Pétanque au parc')
   await o.locator('input[placeholder="Adresse ou nom du lieu"]').fill('Parc de la Tête d’Or')
-  await button(o, 'Publier l’event').click()
-  await o.getByText('Dernière étape avant de publier').waitFor()
+  await button(o, 'Publier l’événement').click()
+  await o.getByText('Crée ton compte pour publier').waitFor()
   await button(o, 'orga@test.fr').click()
   await o.waitForURL(/\/e\/\w+\?created=1/, { timeout: 10000 })
   check('organisateur : publication après connexion', true, o.url())
@@ -102,6 +102,26 @@ async function emailCode(email) {
   check('organisateur : annonce + feuille de partage', true)
   await sleep(400)
   await o.screenshot({ path: `${OUT}/4-partage-annonce.png` })
+
+  // 3b. L'organisateur garde les réponses pour lui : un invité ne voit ni le nombre ni la liste
+  const slug = new URL(o.url()).pathname.split('/')[2]
+  await o.goto(`${BASE}/e/${slug}/edit`)
+  await visible(o, titleInput).waitFor()
+  await visible(o, 'ion-accordion ion-item').filter({ hasText: 'Options de confidentialité' }).click()
+  await visible(o, 'ion-select.responses-select').click()
+  await o.locator('ion-action-sheet button', { hasText: 'Toi seul' }).click()
+  await sleep(300)
+  await o.screenshot({ path: `${OUT}/4b-qui-voit-les-reponses.png`, fullPage: true })
+  await button(o, 'Enregistrer').click()
+  await o.getByText('Événement mis à jour').waitFor({ timeout: 8000 })
+  const p = await newPage()
+  await p.goto(`${BASE}/e/${slug}`)
+  await p.getByText('Tu viens ?').waitFor()
+  const hidden = await p
+    .getByText('Réponses privées', { exact: true })
+    .waitFor({ timeout: 5000 })
+    .then(() => true, () => false)
+  check('organisateur : réponses privées', hidden && (await visible(p, '.counts').count()) === 0)
 
   // 4. Un invité inscrit ne peut pas ouvrir le formulaire d'édition
   const i = await newPage()
@@ -116,8 +136,8 @@ async function emailCode(email) {
   const d = await newPage()
   await d.goto(`${BASE}/new`)
   await d.locator(titleInput).fill('Brouillon abandonné')
-  await button(d, 'Publier l’event').click()
-  await d.getByText('Dernière étape avant de publier').waitFor()
+  await button(d, 'Publier l’événement').click()
+  await d.getByText('Crée ton compte pour publier').waitFor()
   await d.goto(`${BASE}/login`)
   await button(d, 'orga@test.fr').click()
   await d.waitForURL(`${BASE}/`)

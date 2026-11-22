@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../src/lib/database.types'
+import { goingNames, loadPreview, previewHtml } from '../api/_lib/preview'
 
 const URL = process.env.VITE_SUPABASE_URL ?? 'http://127.0.0.1:54321'
 const KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH'
@@ -136,6 +137,50 @@ describe('organisation', () => {
     const other = await user('invite@test.fr')
     const res = await other.from('events').update({ title: 'Hack' }).eq('slug', SLUG).select()
     expect(res.data ?? []).toEqual([])
+  })
+})
+
+describe('visibilité des réponses', () => {
+  it('l’organisateur peut garder les réponses pour lui', async () => {
+    const orga = await user('orga@test.fr')
+    const { data: ev, error } = await orga
+      .from('events')
+      .insert({ title: 'Dîner secret', starts_at: new Date(Date.now() + 86400e3).toISOString(), show_guest_list: false, show_counts: false })
+      .select()
+      .single()
+    expect(error).toBeNull()
+    const g = await guest()
+    await g.rpc('rsvp', { p_slug: ev!.slug, p_status: 'going', p_display_name: 'Léa' })
+
+    // Ni nombre ni liste pour les invités et les visiteurs, tout pour l'organisateur
+    expect(((await g.rpc('get_event', { p_slug: ev!.slug })).data as any).counts).toBeNull()
+    expect(((await client().rpc('get_event', { p_slug: ev!.slug })).data as any).counts).toBeNull()
+    expect((await g.rpc('get_event_guests', { p_slug: ev!.slug })).data).toEqual([])
+    expect(((await orga.rpc('get_event', { p_slug: ev!.slug })).data as any).counts.going).toBe(1)
+  })
+
+  it('la liste des invités ne peut pas être publique si le nombre est masqué', async () => {
+    const orga = await user('orga@test.fr')
+    const { error } = await orga
+      .from('events')
+      .insert({ title: 'Incohérent', starts_at: new Date(Date.now() + 86400e3).toISOString(), show_guest_list: true, show_counts: false })
+    expect(error).not.toBeNull()
+  })
+})
+
+describe('aperçu du lien (fonctions Vercel)', () => {
+  it('lit l’event et les prénoms avec la clé publique, sans session', async () => {
+    const { event, guests } = await loadPreview({ url: URL, key: KEY }, SLUG)
+    expect(event).toMatchObject({ title: 'Anniversaire de Camille 🎂', theme: 'bordeaux', show_counts: true })
+    expect(event!.counts!.going).toBeGreaterThan(0)
+    expect(goingNames(event!, guests).length).toBeGreaterThan(0)
+    const html = previewHtml({ origin: 'https://tfek.app', slug: SLUG, event, guests })
+    expect(html).toContain('<meta property="og:title" content="Anniversaire de Camille 🎂">')
+    expect(html).toMatch(/og:image" content="https:\/\/tfek\.app\/og\/anniv-camille\?v=\w+"/)
+  })
+
+  it('slug inconnu → pas d’event', async () => {
+    expect((await loadPreview({ url: URL, key: KEY }, 'nexistepas')).event).toBeNull()
   })
 })
 

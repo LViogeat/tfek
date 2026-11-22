@@ -26,16 +26,14 @@
       </div>
 
       <div v-else-if="!event" class="center ion-padding">
-        <h2 class="disp">Event introuvable</h2>
-        <p class="muted">Le lien est peut-être incorrect, ou l’event a été supprimé.</p>
+        <h2 class="disp">Événement introuvable</h2>
         <ion-button router-link="/" fill="outline">Retour à l’accueil</ion-button>
       </div>
 
       <div v-else class="page-narrow">
         <!-- Juste après la création : on pousse l'organisateur à partager -->
         <div v-if="justCreated && event.is_organizer" class="created">
-          <p class="disp created-title">Ton event est en ligne.</p>
-          <p class="muted">Partage le lien dans ta conversation de groupe pour que tes invités répondent.</p>
+          <p class="disp created-title">Ton événement est en ligne.</p>
           <ion-button expand="block" @click="shareInvitation">
             <ion-icon slot="start" :icon="shareOutline" />
             Inviter mes amis
@@ -102,17 +100,18 @@
         </template>
 
         <h2 class="section-title">Qui vient</h2>
-        <p class="counts mono">
+        <p v-if="event.counts" class="counts mono">
           <strong>{{ event.counts.going }} oui</strong>
           <span v-if="event.counts.maybe" class="muted"> · {{ event.counts.maybe }} peut-être</span>
         </p>
         <template v-if="event.show_guest_list || event.is_organizer">
           <p v-if="event.is_organizer && !event.show_guest_list" class="muted small pad">
-            Liste visible par toi uniquement.
+            {{ event.show_counts ? 'Liste visible par toi seul' : 'Réponses visibles par toi seul' }}
           </p>
           <GuestList :guests="guests" />
         </template>
-        <p v-else class="muted pad">L’organisateur a choisi de garder la liste des invités privée.</p>
+        <p v-else-if="event.counts" class="muted pad">Liste des invités privée</p>
+        <p v-else class="muted pad">Réponses privées</p>
 
         <div v-if="event.is_organizer && !event.cancelled_at" class="ion-padding">
           <ion-button expand="block" fill="outline" color="dark" @click="shareReminder">
@@ -122,7 +121,7 @@
         </div>
 
         <div class="footer muted">
-          <router-link to="/new">Organise ton propre event avec tfek</router-link>
+          <router-link to="/new">Crée ton événement avec tfek</router-link>
         </div>
       </div>
     </ion-content>
@@ -130,7 +129,7 @@
     <ion-footer v-if="event && !event.cancelled_at && !event.is_organizer" class="ion-no-border">
       <RsvpBar :slug="slug" :my-rsvp="event.my_rsvp" :allow-plus-ones="event.allow_plus_ones" @answered="onAnswered">
         <div v-if="showAccountNudge" class="nudge">
-          <p><strong>C’est noté.</strong> Crée un compte (optionnel) pour retrouver tes events partout.</p>
+          <p><strong>C’est noté.</strong></p>
           <div class="nudge-actions">
             <ion-button size="small" :router-link="`/login?redirect=/e/${slug}`">Créer mon compte</ion-button>
             <ion-button size="small" fill="clear" color="medium" @click="nudgeDismissed = true">Plus tard</ion-button>
@@ -162,7 +161,7 @@ import {
 } from '@/lib/events'
 import { formatRelative } from '@/lib/format'
 import { themeStyle } from '@/lib/themes'
-import { announcementText, eventUrl, invitationText, reminderText } from '@/lib/share'
+import { announcementText, eventUrl, invitationText, reminderText, shareUrl } from '@/lib/share'
 import { openShareSheet } from '@/lib/shareSheet'
 import { downloadIcs } from '@/lib/ics'
 
@@ -180,6 +179,8 @@ const nudgeDismissed = ref(false)
 
 const justCreated = computed(() => route.query.created === '1')
 const url = computed(() => eventUrl(props.slug))
+// Lien des messages partagés : change avec les réponses pour que WhatsApp refasse l'aperçu
+const sharedUrl = computed(() => (event.value ? shareUrl(event.value) : url.value))
 const showAccountNudge = computed(() => justAnswered.value && !isRegistered.value && !nudgeDismissed.value)
 
 // Plusieurs déclencheurs (entrée sur la page, réponse, changement de session, fusion) :
@@ -229,8 +230,8 @@ function shareInvitation() {
   void openShareSheet({
     header: 'Inviter des amis',
     title: event.value.title,
-    text: invitationText(event.value.title, url.value),
-    url: url.value,
+    text: invitationText(event.value.title, sharedUrl.value),
+    url: sharedUrl.value,
   })
 }
 
@@ -239,8 +240,8 @@ function shareAnnouncement(body: string) {
   void openShareSheet({
     header: 'Prévenir les invités',
     title: event.value.title,
-    text: announcementText(event.value.title, body, url.value),
-    url: url.value,
+    text: announcementText(event.value.title, body, sharedUrl.value),
+    url: sharedUrl.value,
   })
 }
 
@@ -249,8 +250,8 @@ function shareReminder() {
   void openShareSheet({
     header: 'Relancer les invités',
     title: event.value.title,
-    text: reminderText(event.value.title, url.value),
-    url: url.value,
+    text: reminderText(event.value.title, sharedUrl.value),
+    url: sharedUrl.value,
   })
 }
 

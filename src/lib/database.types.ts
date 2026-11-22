@@ -45,14 +45,14 @@ isOneToOne: false
                   ]
                 },"events": {
                   Row: {
-                    "allow_plus_ones": boolean,"cancelled_at": string | null,"cover_url": string | null,"created_at": string,"description": string | null,"ends_at": string | null,"id": string,"location": string | null,"organizer_id": string,"show_guest_list": boolean,"slug": string,"starts_at": string,"theme": string,"title": string,"updated_at": string,"visibility": Database["public"]['Enums']["event_visibility"]
+                    "allow_plus_ones": boolean,"cancelled_at": string | null,"cover_url": string | null,"created_at": string,"description": string | null,"ends_at": string | null,"id": string,"location": string | null,"organizer_id": string,"show_counts": boolean,"show_guest_list": boolean,"slug": string,"starts_at": string,"theme": string,"title": string,"updated_at": string,"visibility": Database["public"]['Enums']["event_visibility"]
                   }
                   ComputedFields: never
                   Insert: {
-                    "allow_plus_ones"?: boolean,"cancelled_at"?: string | null,"cover_url"?: string | null,"created_at"?: string,"description"?: string | null,"ends_at"?: string | null,"id"?: string,"location"?: string | null,"organizer_id"?: string,"show_guest_list"?: boolean,"slug"?: string,"starts_at": string,"theme"?: string,"title": string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["event_visibility"]
+                    "allow_plus_ones"?: boolean,"cancelled_at"?: string | null,"cover_url"?: string | null,"created_at"?: string,"description"?: string | null,"ends_at"?: string | null,"id"?: string,"location"?: string | null,"organizer_id"?: string,"show_counts"?: boolean,"show_guest_list"?: boolean,"slug"?: string,"starts_at": string,"theme"?: string,"title": string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["event_visibility"]
                   }
                   Update: {
-                    "allow_plus_ones"?: boolean,"cancelled_at"?: string | null,"cover_url"?: string | null,"created_at"?: string,"description"?: string | null,"ends_at"?: string | null,"id"?: string,"location"?: string | null,"organizer_id"?: string,"show_guest_list"?: boolean,"slug"?: string,"starts_at"?: string,"theme"?: string,"title"?: string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["event_visibility"]
+                    "allow_plus_ones"?: boolean,"cancelled_at"?: string | null,"cover_url"?: string | null,"created_at"?: string,"description"?: string | null,"ends_at"?: string | null,"id"?: string,"location"?: string | null,"organizer_id"?: string,"show_counts"?: boolean,"show_guest_list"?: boolean,"slug"?: string,"starts_at"?: string,"theme"?: string,"title"?: string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["event_visibility"]
                   }
                   Relationships: [
                     

@@ -18,12 +18,14 @@ export interface EventDetails {
   theme: string
   visibility: EventVisibility
   show_guest_list: boolean
+  show_counts: boolean
   allow_plus_ones: boolean
   cancelled_at: string | null
   created_at: string
   organizer_name: string
   is_organizer: boolean
-  counts: { going: number; maybe: number; declined: number }
+  /** `null` quand l'organisateur garde les réponses pour lui */
+  counts: { going: number; maybe: number; declined: number } | null
   my_rsvp: { status: RsvpStatus; display_name: string; plus_ones: number } | null
 }
 
@@ -49,6 +51,7 @@ export interface EventInput {
   location: string | null
   visibility: EventVisibility
   show_guest_list: boolean
+  show_counts: boolean
   allow_plus_ones: boolean
   theme: ThemeId
 }

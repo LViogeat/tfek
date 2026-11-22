@@ -9,10 +9,12 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
+      // Les images d'aperçu et les fonctions Vercel ne passent pas par l'app hors ligne
+      workbox: { navigateFallbackDenylist: [/^\/api\//, /^\/og\//] },
       manifest: {
         name: 'tfek',
         short_name: 'tfek',
-        description: 'Organise tes events et sache qui vient.',
+        description: 'Organise tes événements et sache qui vient.',
         lang: 'fr',
         theme_color: '#1b1e21',
         background_color: '#1b1e21',

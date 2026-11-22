@@ -69,12 +69,26 @@ Notes pour Claude :
    | `VITE_SUPABASE_PUBLISHABLE_KEY` | clé publishable (`sb_publishable_…`) |
    | `VITE_PUBLIC_URL` | l'adresse Vercel, sans `/` final (ex. `https://tfek.vercel.app`) |
 
+   Les fonctions de l'aperçu du lien (`api/`) lisent ces mêmes variables à l'exécution.
+
 4. **Deploy**. Ensuite, chaque fusion dans `main` redéploie automatiquement.
 5. Si l'adresse Vercel finale diffère de celle mise dans Supabase (étape 1.4), corriger la Site URL
    et les Redirect URLs, puis `VITE_PUBLIC_URL` et redéployer.
 
 `vercel.json` (à la racine) renvoie toutes les routes vers `index.html` : sans lui, ouvrir directement
-un lien `/e/<slug>` donnerait une 404.
+un lien `/e/<slug>` donnerait une 404. Il envoie aussi les robots des messageries (repérés à leur
+user-agent) vers `/api/event-preview`, qui sert les balises Open Graph, et `/og/<slug>` vers
+`/api/og`, qui dessine l'image du billet.
+
+**Vérifier l'aperçu du lien** après déploiement :
+
+```bash
+curl -A "WhatsApp/2.23" https://tfek.vercel.app/e/<slug>
+```
+
+La réponse doit contenir `og:title` et `og:image` ; ouvrir l'adresse de `og:image` dans un navigateur
+montre l'image. Le débogueur de partage de Facebook (developers.facebook.com/tools/debug) affiche
+l'aperçu tel que Messenger le verra et permet de vider son cache.
 
 **3. Sur le téléphone**
 
@@ -86,6 +100,7 @@ Ouvrir l'adresse Vercel. « Ajouter à l'écran d'accueil » l'installe comme un
   membres de l'organisation Supabase** (et environ 2 par heure). Toi tu peux te connecter et créer
   des events ; tes amis peuvent répondre (pas besoin de compte) mais pas créer de compte.
   Pour ouvrir à tous : brancher un SMTP gratuit (Resend ou Brevo) dans **Authentication → Emails → SMTP**.
-- **Aperçu du lien dans WhatsApp** : pas encore de balises Open Graph par event (prochaine étape
-  de la feuille de route), l'aperçu sera générique.
+- **Aperçu du lien** : les dates de l'aperçu sont à l'heure de Paris (les events n'ont pas de fuseau).
+  WhatsApp garde un aperçu en cache par adresse : les messages partagés depuis l'app ajoutent
+  `?r=<oui>-<peut-être>` au lien pour que les rappels montrent les réponses à jour.
 - **Connexion Google** : désactivée (`VITE_ENABLE_GOOGLE=false`), à configurer plus tard si besoin.

@@ -12,7 +12,6 @@
     <ion-content class="ion-padding">
       <div class="page-narrow">
         <h1 class="disp">{{ headline }}</h1>
-        <p class="muted">{{ subline }}</p>
 
         <template v-if="step === 'email'">
           <form @submit.prevent="sendCode">
@@ -35,7 +34,6 @@
               Recevoir un code
             </ion-button>
           </form>
-          <p class="muted small center">Pas de mot de passe : on t’envoie un code à 6 chiffres.</p>
 
           <template v-if="googleEnabled">
             <div class="divider"><span>ou</span></div>
@@ -102,12 +100,7 @@ const redirect = computed(() => {
   return typeof r === 'string' && r.startsWith('/') && !r.startsWith('//') ? r : '/'
 })
 const reason = computed(() => route.query.reason)
-const headline = computed(() => (reason.value === 'publish' ? 'Dernière étape avant de publier' : 'Connecte-toi à tfek'))
-const subline = computed(() =>
-  reason.value === 'publish'
-    ? 'Ton e-mail te permet de gérer ton event, publier des infos et voir qui vient.'
-    : 'Retrouve les events que tu organises et ceux auxquels tu es invité, sur tous tes appareils.',
-)
+const headline = computed(() => (reason.value === 'publish' ? 'Crée ton compte pour publier' : 'Connecte-toi à tfek'))
 
 const isDev = import.meta.env.DEV
 const googleEnabled = import.meta.env.VITE_ENABLE_GOOGLE === 'true'
