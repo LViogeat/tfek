@@ -4,6 +4,7 @@ Contexte pour reprendre le projet dans une nouvelle session. À lire en entier a
 
 - **Vision, décisions produit et feuille de route** : [`docs/PRODUIT.md`](docs/PRODUIT.md) — lis-le, il explique *pourquoi* les choses sont comme elles sont.
 - **Mise en ligne** : [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md).
+- **Spécifications des prochains chantiers** : [`docs/SPECS.md`](docs/SPECS.md) — à suivre pour coder chaque chantier.
 - **Démarrage et scripts** : [`README.md`](README.md).
 
 ## En une phrase
@@ -150,4 +151,4 @@ MVP v0.1 fonctionnel en local, design « billet chic » terminé et fusionné da
 
 - Aperçu riche du lien et réglage « Qui voit les réponses » codés (fonctions Vercel dans `api/`), à vérifier sur téléphone après la mise en ligne.
 - **Prochaine étape : mise en ligne de test** pour essayer l'app sur téléphone. Tout est préparé dans [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md) (deux options : Claude fait tout par API avec des jetons, ou pas-à-pas manuel ; `vercel.json` déjà en place). Une première tentative a échoué sur un mauvais jeton Supabase, voir le document.
-- Ensuite : voir les priorités dans [`docs/PRODUIT.md`](docs/PRODUIT.md#feuille-de-route).
+- Ensuite : les chantiers 2 à 11 de [`docs/SPECS.md`](docs/SPECS.md), dans l'ordre de la [feuille de route](docs/PRODUIT.md#feuille-de-route).

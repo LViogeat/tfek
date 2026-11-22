@@ -28,8 +28,10 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
    - Options : qui voit les réponses (tout le monde avec les prénoms, le nombre seulement, ou l'organisateur seul, comme sur Facebook), interdire les +1.
    - Plus tard : events **publics découvrables**.
 6. **Web app d'abord** (PWA), avec **Ionic + Vue + Capacitor** pour publier sur les stores plus tard sans réécrire.
-7. **Plus tard, si l'app perce** : events sponsorisés.
+7. **Plus tard, si l'app perce** : events sponsorisés. L'ambition est de prendre une petite part de marché aux conversations de groupe, où s'organisent aujourd'hui la plupart des évènements entre amis.
 8. **Style « billet », version chic** (choisi après plusieurs pistes de maquettes) : app toujours en sombre, chaque invitation est un billet d'entrée (bandeau aux couleurs profondes avec fines rayures et liseré, **tampon rond « INVITATION · TFEK »** qui porte la marque, date et heure en police machine, ligne pointillée). L'organisateur choisit parmi 6 palettes : Noir et or, Bordeaux, Vert anglais, Bleu nuit, Terre cuite, Ivoire. Détails dorés, traits fins, pas de couleurs fluo. Le côté fun passe par le visuel, **pas par les textes** : ton sobre, **pas de point d'exclamation ni d'emoji dans l'interface** (les utilisateurs mettent ce qu'ils veulent dans leurs propres textes). Police unique : JetBrains Mono (titres en gras serré, texte, détails du billet), embarquée.
+9. **Hébergé en France, conforme au RGPD** (décidé le 22/11/2026) : c'est un argument face à Facebook et WhatsApp. Données à Paris dès la mise en ligne de test, migration vers un hébergeur français avant le lancement public. Peu de données (un prénom suffit pour répondre), pas de pistage ni de cookie publicitaire, suppression et export du compte, durées de conservation définies.
+10. **Mur de discussion : lire est libre, écrire demande un compte** (décidé le 22/11/2026). Le compte rend chaque message attribuable, donc modérable ; l'invité qui veut écrire est déjà impliqué, comme l'organisateur au moment de publier.
 
 ## Choix techniques et pourquoi
 
@@ -54,14 +56,24 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
 
 ## Feuille de route
 
-Par ordre de priorité proposé :
+Décidée le 22/11/2026. Le détail de chaque chantier est dans [`SPECS.md`](SPECS.md).
 
-1. **Mise en ligne** : projet Supabase cloud + hébergement statique (Vercel), SMTP réel (Resend/Brevo), domaine. Pas-à-pas dans [`DEPLOIEMENT.md`](DEPLOIEMENT.md).
-2. **Vérifier l'aperçu du lien sur de vrais téléphones** une fois en ligne (WhatsApp, Messenger, iMessage), et passer le favicon (encore violet) au style billet.
-3. **Poids du bundle** (~330 Ko gzip) : découpage, chargement différé.
-4. **Notifications optionnelles** : push web pour les invités, e-mail pour les comptes (nouvelle info, rappel la veille).
-5. **Image de couverture** (Supabase Storage).
-6. Connexion Google en production.
-7. Builds natifs iOS/Android + liens profonds (le lien magique ouvre aujourd'hui la version web ; le code à 6 chiffres marche partout).
-8. **Suite de la couche sociale** (amis faits) : prévenir un ami invité (push web ou e-mail, il ne le voit aujourd'hui qu'en ouvrant l'app), option de visibilité « mes amis » pour qu'un évènement apparaisse chez eux sans invitation, « tes amis qui y vont » dans l'aperçu. Toujours réservé aux comptes, **jamais imposé** à celui qui répond par le lien.
-9. Idées en attente : « qui ramène quoi », sondage de date, commentaires, validation des participants par l'organisateur, co-organisateurs, dupliquer un évènement, events publics découvrables, events sponsorisés.
+1. **Mise en ligne de test en France** : Supabase Paris, fonctions Vercel à Paris, SMTP Brevo, domaine. Pas-à-pas dans [`DEPLOIEMENT.md`](DEPLOIEMENT.md), puis vérifications sur de vrais téléphones.
+2. **Dupliquer un évènement**, avec les invités.
+3. **Relancer les « peut-être »**, avec un message pré-rédigé.
+4. **Prévenir quand l'heure ou le lieu change** : info publiée automatiquement et partage proposé.
+5. **Socle RGPD** : supprimer son compte, effacer ses réponses, télécharger ses données, durées de conservation, pages légales.
+6. **Co-organisateurs**, choisis parmi ses amis.
+7. **Notifications** : e-mail pour les comptes, push web pour qui l'accepte, rappel la veille, changements, infos.
+8. **Mur de discussion** : lecture libre, **compte obligatoire pour écrire**, suppression, signalement.
+9. **Qui ramène quoi**.
+10. **Sondage de date**.
+11. **Migration vers un hébergeur français**, avant le lancement public.
+
+Ensuite, sans ordre fixé :
+- Poids du bundle (~330 Ko gzip) : découpage, chargement différé ; favicon (encore violet) au style billet.
+- Image de couverture (stockage de fichiers).
+- Connexion Google en production.
+- Builds natifs iOS/Android + liens profonds (le lien magique ouvre aujourd'hui la version web ; le code à 6 chiffres marche partout).
+- Suite de la couche sociale : visibilité « mes amis » (un évènement apparaît chez eux sans invitation), « tes amis qui y vont » dans l'aperçu. Toujours réservé aux comptes, **jamais imposé** à celui qui répond par le lien.
+- Idées en attente : validation des participants par l'organisateur, events publics découvrables, events sponsorisés.
