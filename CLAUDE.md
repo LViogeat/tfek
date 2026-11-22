@@ -52,10 +52,11 @@ src/
   lib/share.ts / shareSheet.ts         textes pré-rédigés + feuille WhatsApp / SMS / natif / copier
   lib/ics.ts                           export agenda (RFC 5545 ; partage de fichier en natif)
   lib/draft.ts                         brouillon d'event (localStorage) pendant la connexion, avec un draftId
+  lib/pendingShare.ts                  info à faire partager en revenant du formulaire (changement, annulation)
   lib/redirect.ts                      safeRedirect : chemin de retour après connexion, limité à l'app
   lib/linkPreview.ts                   empreinte de l'aperçu, partagée entre l'app (?r=) et api/
   lib/themes.ts                        thèmes des billets (doit rester aligné avec la contrainte events.theme)
-  lib/format.ts                        dates en français
+  lib/format.ts                        dates en français, prénoms, `changeSummary` (texte des changements), décalage de semaines
   views/                               HomePage, EventPage, EventFormPage, LoginPage, AccountPage, FriendsPage, FriendLinkPage
   theme/variables.css                  thème sombre global, polices, tokens du style billet
   components/                          EventTicket (+ TfekStamp), RsvpBar (réponse fixée en bas, « C'est toi ? », + Confetti), GuestList (+ « Pas encore répondu »), EventListItem, RsvpBadge
@@ -77,6 +78,9 @@ Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris
 - **Invités attendus** (`invitees`) : prénoms ajoutés par l'organisateur (`add_invitees`, sans doublon, insensible à la casse). En répondant, l'invité dit « c'est moi » (`invitee_id`, ou un prénom tapé identique) : `invitees.user_id` le retient, une personne = un prénom par évènement, un prénom pris ne peut plus l'être par un autre. `get_event_invitees` ne renvoie jamais de réponse aux invités : liste publique → les prénoms libres et le leur ; **réponses privées → tous les prénoms**, sinon un prénom qui disparaît trahirait une réponse (et choisir un prénom pris enregistre la réponse sans rattachement au lieu d'une erreur). L'organisateur les reçoit tous avec leur réponse (`null` = pas encore répondu). Un prénom ajouté après coup est rattaché à celui qui a déjà répondu sous ce prénom, et à la fusion invité → compte le « c'est moi » suit la réponse gardée.
 - **Amis** (`friendships`, comptes inscrits uniquement) : une ligne par paire (index unique sur `least/greatest`), `pending` puis `accepted`. Écritures **uniquement par RPC** : `add_friend_by_code` (ouvrir le lien d'ami de quelqu'un = amis tout de suite, le partager vaut accord ; `profiles.friend_code`), `request_friend` (demande ; des demandes croisées valent acceptation), `accept_friend`, `remove_friend` (retirer, refuser, annuler). Lecture : `list_friends`, `friend_suggestions` (comptes croisés aux mêmes évènements, organisateur ou réponse autre que « non », **seulement là où la liste des invités m'était visible**), `get_friend_link`. Pas de recherche par e-mail.
 - **Inviter des amis** : `invite_friends` crée des `invitees` déjà rattachés à l'ami (ou rattache un prénom libre identique ; homonyme déjà pris → « Alex 2 »). Les amis sans prénom ne sont pas invitables : la page Amis demande le prénom avant de partager le lien. La policy « un invité attendu voit l'évènement » fait apparaître l'évènement dans ses « Invitations » (badge « À répondre ») avant qu'il réponde. `get_invitable_friends` liste les amis pas encore invités ; `get_event_guests` renvoie `is_friend`.
+- **Infos** (`announcements.kind`) : `message` (publiée par l'organisateur), `change` (heure, date ou lieu modifiés : publiée automatiquement à l'enregistrement, avec l'ancienne valeur, puis partage proposé via `pendingShare`), `cancel` (annulation). Rien pour un évènement passé.
+- **Dupliquer** : `/new?from=<slug>` pré-remplit le formulaire une semaine plus tard (la prochaine semaine à venir) ; `copy_invitees` reprend la liste (amis rattachés, autres prénoms libres) ; un brouillon en cours n'est pas effacé.
+- **Relancer** : « Pas encore répondu » et « Peut-être » ; sans prénoms quand les réponses sont privées.
 - **Publication** : le formulaire envoie toujours un `draftId` (renouvelé après chaque publication, la page restant en cache) : republier après une erreur réseau renvoie l'évènement déjà créé.
 - **Créer un event** : policy `is_registered()` (session non anonyme). Modifier, supprimer ou publier une annonce : organisateur uniquement (`is_event_organizer`).
 - **Visibilité des réponses** : trois niveaux dans le formulaire (« Qui voit les réponses »), stockés dans `show_guest_list` et `show_counts` (contrainte : la liste implique le nombre). Sans `show_counts`, `get_event` renvoie `counts: null` aux invités. Le même réglage s'applique à l'aperçu du lien.
@@ -102,7 +106,7 @@ Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris
 
 ## Pièges connus
 
-- **Ionic garde les pages en cache dans le DOM** : utilise `onIonViewWillEnter` (pas seulement `onMounted`) pour recharger. Dans les tests, cible `.ion-page:not(.ion-page-hidden) …`.
+- **Ionic garde les pages en cache dans le DOM** : utilise `onIonViewWillEnter` (pas seulement `onMounted`) pour recharger. Dans les tests, cible `ion-router-outlet > .ion-page:not(.ion-page-hidden) …` (`ion-app` porte aussi la classe `ion-page`). Un `ion-button` avec `router-link` est un lien (`getByRole('link')`), et Ionic déplace son `aria-label` dans le shadow DOM.
 - **Thème par page** : une variable CSS qui en référence une autre est résolue là où elle est déclarée. `themeStyle()` redéfinit donc aussi les variables Ionic (`--ion-background-color`, `--ion-color-primary`…) sur l'`ion-page`, pas seulement les `--t-*`.
 - **Pas d'appel Supabase directement dans `onAuthStateChange`** (risque de blocage interne) : passe par `setTimeout`.
 - **Chargements concurrents** : `HomePage` et `EventPage` utilisent un compteur `loadSeq` pour ignorer les réponses obsolètes. Garde ce schéma.
@@ -138,7 +142,7 @@ Le premier `supabase start` télécharge les images (quelques minutes). Si un `d
 
 ```bash
 npm run typecheck
-npm run db:reset && npm test        # 60 tests, base locale requise
+npm run db:reset && npm test        # 69 tests, base locale requise
 npm run db:reset && npm run e2e     # serveur dev lancé ; captures dans tests/e2e/shots/
 npm run build
 ```
@@ -151,4 +155,5 @@ MVP v0.1 fonctionnel en local, design « billet chic » terminé et fusionné da
 
 - Aperçu riche du lien et réglage « Qui voit les réponses » codés (fonctions Vercel dans `api/`), à vérifier sur téléphone après la mise en ligne.
 - **Prochaine étape : mise en ligne de test** pour essayer l'app sur téléphone. Tout est préparé dans [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md) (deux options : Claude fait tout par API avec des jetons, ou pas-à-pas manuel ; `vercel.json` déjà en place). Une première tentative a échoué sur un mauvais jeton Supabase, voir le document.
-- Ensuite : les chantiers 2 à 11 de [`docs/SPECS.md`](docs/SPECS.md), dans l'ordre de la [feuille de route](docs/PRODUIT.md#feuille-de-route).
+- Chantiers 2 à 4 de [`docs/SPECS.md`](docs/SPECS.md) faits (dupliquer, relancer les « peut-être », prévenir des changements).
+- Ensuite : les chantiers 5 à 11 de [`docs/SPECS.md`](docs/SPECS.md), dans l'ordre de la [feuille de route](docs/PRODUIT.md#feuille-de-route).

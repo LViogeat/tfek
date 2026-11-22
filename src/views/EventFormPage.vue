@@ -106,10 +106,26 @@
           </ion-accordion>
         </ion-accordion-group>
 
+        <ion-list v-if="fromSlug && sourceInvitees > 0" inset>
+          <ion-item lines="none">
+            <ion-toggle v-model="copyGuests">Reprendre les invités ({{ sourceInvitees }})</ion-toggle>
+          </ion-item>
+        </ion-list>
+
         <div class="ion-padding">
           <ion-button type="submit" expand="block" :disabled="saving || !canSubmit">
             <ion-spinner v-if="saving" slot="start" name="crescent" />
             {{ slug ? 'Enregistrer' : 'Publier l’évènement' }}
+          </ion-button>
+          <ion-button
+            v-if="slug && original"
+            expand="block"
+            fill="outline"
+            color="dark"
+            class="duplicate"
+            :router-link="`/new?from=${slug}`"
+          >
+            Dupliquer
           </ion-button>
           <ion-button
             v-if="slug && original && !original.cancelled_at"
@@ -136,9 +152,12 @@ import {
 } from '@ionic/vue'
 import { closeOutline } from 'ionicons/icons'
 import { currentUser, isRegistered, initAuth } from '@/lib/auth'
-import { createEvent, getEventForEdit, updateEvent, type EventInput, type EventRow } from '@/lib/events'
+import {
+  copyInvitees, createEvent, getEventForEdit, getInvitees, postAnnouncement, updateEvent, type EventInput, type EventRow,
+} from '@/lib/events'
 import { clearDraft, loadDraft, saveDraft } from '@/lib/draft'
-import { toLocalInput } from '@/lib/format'
+import { changeSummary, shiftWeeks, toLocalInput, weeksUntilFuture } from '@/lib/format'
+import { pendingShare } from '@/lib/pendingShare'
 import { DEFAULT_THEME, THEMES, getTheme, themeStyle } from '@/lib/themes'
 
 const props = defineProps<{ slug?: string }>()
@@ -180,8 +199,28 @@ const original = ref<EventRow | null>(null)
 // Identifiant de ce brouillon, envoyé à chaque publication : une nouvelle tentative après une erreur
 // réseau (alors que l'évènement est déjà enregistré) renvoie le même évènement au lieu d'un doublon
 const draftId = ref<string>(crypto.randomUUID())
+// Dupliquer (/new?from=<slug>) : évènement source, nombre d'invités à reprendre
+const fromSlug = ref<string | null>(null)
+const sourceInvitees = ref(0)
+const copyGuests = ref(true)
+// Le formulaire a été rempli depuis un évènement source : à vider pour une création ordinaire
+let filledFromSource = false
 
 const canSubmit = computed(() => form.title.trim().length > 0 && !!startsAt.value)
+
+function resetForm() {
+  form.title = ''
+  form.description = ''
+  form.location = ''
+  form.visibility = 'link'
+  form.show_guest_list = true
+  form.show_counts = true
+  form.allow_plus_ones = true
+  form.theme = DEFAULT_THEME
+  startsAt.value = defaultStart()
+  endsAt.value = ''
+  showEnd.value = false
+}
 
 function removeEnd() {
   endsAt.value = ''
@@ -221,7 +260,15 @@ async function toast(message: string, color = 'dark') {
 
 async function publish(input: EventInput) {
   const created = await createEvent(input, draftId.value)
-  clearDraft()
+  if (fromSlug.value && copyGuests.value && sourceInvitees.value > 0) {
+    try {
+      await copyInvitees(fromSlug.value, created.slug)
+    } catch (e) {
+      await toast(`Les invités n’ont pas pu être repris : ${(e as Error).message}`, 'danger')
+    }
+  }
+  // Une duplication ne touche pas au brouillon en cours
+  if (!fromSlug.value) clearDraft()
   // Ionic garde la page en cache : le prochain évènement aura son propre identifiant
   draftId.value = crypto.randomUUID()
   await router.replace({ path: `/e/${created.slug}`, query: { created: '1' } })
@@ -237,7 +284,9 @@ async function submit() {
   try {
     const input = toInput()
     if (props.slug && original.value) {
-      await updateEvent(original.value.id, input)
+      const before = original.value
+      await updateEvent(before.id, input)
+      await announceChange(before, input)
       await toast('Évènement mis à jour')
       router.back()
     } else if (!isRegistered.value) {
@@ -254,6 +303,23 @@ async function submit() {
   }
 }
 
+/**
+ * Heure, date ou lieu changés : publie une info et la fait partager en arrivant sur la page.
+ * Rien pour un évènement passé ou annulé.
+ */
+async function announceChange(before: EventRow, after: EventInput) {
+  const now = Date.now()
+  const past = new Date(before.starts_at).getTime() < now && new Date(after.starts_at).getTime() < now
+  const summary = changeSummary(before, after)
+  if (!summary || past || before.cancelled_at || !props.slug) return
+  try {
+    await postAnnouncement(before.id, summary, 'change')
+    pendingShare.value = { slug: props.slug, body: summary }
+  } catch (e) {
+    await toast(`L’info n’a pas pu être publiée : ${(e as Error).message}`, 'danger')
+  }
+}
+
 async function cancelEvent() {
   if (!original.value) return
   const alert = await alertController.create({
@@ -266,6 +332,12 @@ async function cancelEvent() {
         handler: async () => {
           try {
             await updateEvent(original.value!.id, { cancelled_at: new Date().toISOString() })
+            try {
+              await postAnnouncement(original.value!.id, 'Évènement annulé', 'cancel')
+              pendingShare.value = { slug: props.slug!, body: 'Évènement annulé' }
+            } catch {
+              // L'annulation est faite : l'info manquante ne doit pas la masquer
+            }
             await router.replace(`/e/${props.slug}`)
           } catch (e) {
             await toast(`L’évènement n’a pas pu être annulé : ${(e as Error).message}`, 'danger')
@@ -275,6 +347,28 @@ async function cancelEvent() {
     ],
   })
   await alert.present()
+}
+
+/** Dupliquer : copie de l'évènement source, une semaine plus tard (ou la prochaine semaine à venir). */
+async function fillFromSource(from: string) {
+  resetForm()
+  fromSlug.value = null
+  sourceInvitees.value = 0
+  copyGuests.value = true
+  draftId.value = crypto.randomUUID()
+  filledFromSource = true
+  const user = currentUser.value
+  const src = user && isRegistered.value ? await getEventForEdit(from, user.id).catch(() => null) : null
+  // Source introuvable ou pas organisateur : formulaire vide, sans message
+  if (!src) return
+  const weeks = weeksUntilFuture(src.starts_at)
+  fill({
+    ...src,
+    starts_at: shiftWeeks(src.starts_at, weeks),
+    ends_at: src.ends_at ? shiftWeeks(src.ends_at, weeks) : null,
+  })
+  fromSlug.value = from
+  sourceInvitees.value = (await getInvitees(from).catch(() => [])).length
 }
 
 onIonViewWillEnter(async () => {
@@ -291,6 +385,17 @@ onIonViewWillEnter(async () => {
     original.value = e
     fill(e)
     return
+  }
+  const from = typeof route.query.from === 'string' ? route.query.from : null
+  if (from) {
+    await fillFromSource(from)
+    return
+  }
+  if (filledFromSource) {
+    // Retour sur une création ordinaire après une duplication
+    resetForm()
+    fromSlug.value = null
+    filledFromSource = false
   }
   const draft = loadDraft()
   if (!draft) return
@@ -317,6 +422,9 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
+.duplicate {
+  margin-top: 8px;
+}
 .themes {
   border: 0;
   margin: 8px 16px 16px;

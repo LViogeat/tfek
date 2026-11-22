@@ -195,6 +195,8 @@ create table public.announcements (
   event_id uuid not null references public.events (id) on delete cascade,
   author_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   body text not null check (char_length(body) between 1 and 2000),
+  -- 'change' : heure, date ou lieu modifiés ; 'cancel' : évènement annulé (publiées automatiquement)
+  kind text not null default 'message' check (kind in ('message', 'change', 'cancel')),
   created_at timestamptz not null default now()
 );
 
@@ -377,13 +379,13 @@ end;
 $$;
 
 create or replace function public.get_event_announcements(p_slug text)
-returns table (id uuid, body text, created_at timestamptz)
+returns table (id uuid, body text, kind text, created_at timestamptz)
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select a.id, a.body, a.created_at
+  select a.id, a.body, a.kind, a.created_at
   from public.events e
   join public.announcements a on a.event_id = e.id
   where e.slug = p_slug
@@ -919,6 +921,36 @@ begin
 end;
 $$;
 
+-- Dupliquer un évènement : reprend les prénoms de la liste. Un prénom rattaché à un ami de
+-- l'organisateur le reste (l'évènement arrive dans ses invitations), les autres sont copiés sans rattachement.
+create or replace function public.copy_invitees(p_from text, p_to text)
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_from uuid;
+  v_to uuid;
+  v_count int;
+begin
+  select id into v_from from public.events where slug = p_from and public.is_event_organizer(id);
+  select id into v_to from public.events where slug = p_to and public.is_event_organizer(id);
+  if v_from is null or v_to is null then
+    raise exception 'Réservé à l''organisateur' using errcode = '42501';
+  end if;
+
+  insert into public.invitees (event_id, display_name, user_id)
+  select v_to, i.display_name,
+         case when public.are_friends(i.user_id, auth.uid()) then i.user_id end
+  from public.invitees i
+  where i.event_id = v_from
+  on conflict do nothing;
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- Droits
 -- ---------------------------------------------------------------------------
@@ -937,6 +969,7 @@ revoke execute on function public.list_friends() from public, anon;
 revoke execute on function public.friend_suggestions() from public, anon;
 revoke execute on function public.get_invitable_friends(text) from public, anon;
 revoke execute on function public.invite_friends(text, uuid[]) from public, anon;
+revoke execute on function public.copy_invitees(text, text) from public, anon;
 grant execute on function public.create_merge_token() to authenticated;
 grant execute on function public.merge_anonymous_user(text) to authenticated;
 grant execute on function public.rsvp(text, public.rsvp_status, text, int, uuid) to authenticated;
@@ -950,3 +983,4 @@ grant execute on function public.list_friends() to authenticated;
 grant execute on function public.friend_suggestions() to authenticated;
 grant execute on function public.get_invitable_friends(text) to authenticated;
 grant execute on function public.invite_friends(text, uuid[]) to authenticated;
+grant execute on function public.copy_invitees(text, text) to authenticated;

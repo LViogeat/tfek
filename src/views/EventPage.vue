@@ -47,6 +47,7 @@
         <!-- Dernière annonce mise en avant -->
         <div v-if="announcements.length" class="announce">
           <div class="lbl announce-head">
+            <span v-if="KIND_LABELS[announcements[0]!.kind]" class="kind-tag">{{ KIND_LABELS[announcements[0]!.kind] }}</span>
             Info de {{ event.organizer_name }} · {{ formatRelative(announcements[0]!.created_at) }}
           </div>
           <p>{{ announcements[0]!.body }}</p>
@@ -84,7 +85,10 @@
           <ul class="all-infos">
             <li v-for="a in announcements" :key="a.id">
               <div class="info-text">
-                <div class="lbl muted">{{ formatRelative(a.created_at) }}</div>
+                <div class="lbl muted">
+                  <span v-if="KIND_LABELS[a.kind]" class="kind-tag">{{ KIND_LABELS[a.kind] }}</span>
+                  {{ formatRelative(a.created_at) }}
+                </div>
                 <div class="announce-body">{{ a.body }}</div>
               </div>
               <template v-if="event.is_organizer">
@@ -143,7 +147,7 @@
           </div>
           <ion-button expand="block" fill="outline" color="dark" @click="shareReminder">
             <ion-icon slot="start" :icon="notificationsOutline" />
-            Relancer ceux qui n’ont pas répondu
+            Relancer
           </ion-button>
         </div>
 
@@ -179,7 +183,7 @@ import { useRoute } from 'vue-router'
 import {
   IonPage, IonHeader, IonToolbar, IonContent, IonFooter, IonButtons, IonBackButton, IonButton, IonIcon,
   IonTextarea, IonSpinner, IonInput,
-  IonRefresher, IonRefresherContent, alertController, toastController, onIonViewWillEnter,
+  IonRefresher, IonRefresherContent, actionSheetController, alertController, toastController, onIonViewWillEnter,
 } from '@ionic/vue'
 import {
   megaphoneOutline, shareOutline, createOutline, trashOutline, notificationsOutline, personAddOutline, addOutline,
@@ -190,12 +194,13 @@ import GuestList from '@/components/GuestList.vue'
 import { currentUser, isRegistered, mergedVersion } from '@/lib/auth'
 import {
   addInvitees, deleteAnnouncement, deleteInvitee, getAnnouncements, getEvent, getGuests, getInvitees,
-  postAnnouncement, type Announcement, type EventDetails, type Guest, type Invitee, type RsvpStatus,
+  postAnnouncement, type Announcement, type AnnouncementKind, type EventDetails, type Guest, type Invitee, type RsvpStatus,
 } from '@/lib/events'
 import { formatRelative, parseNames } from '@/lib/format'
 import { getInvitableFriends, inviteFriends } from '@/lib/friends'
 import { themeStyle } from '@/lib/themes'
-import { announcementText, eventUrl, invitationText, reminderText, shareUrl } from '@/lib/share'
+import { announcementText, eventUrl, invitationText, maybeText, reminderText, shareUrl } from '@/lib/share'
+import { pendingShare } from '@/lib/pendingShare'
 import { openShareSheet } from '@/lib/shareSheet'
 import { downloadIcs } from '@/lib/ics'
 
@@ -211,6 +216,7 @@ const adding = ref(false)
 const invitableFriends = ref<{ user_id: string; display_name: string }[]>([])
 // Organisateur : prénoms de sa liste sans réponse
 const pending = computed(() => invitees.value.filter((i) => i.status === null))
+const KIND_LABELS: Record<AnnouncementKind, string> = { message: '', change: 'Changement', cancel: 'Annulation' }
 const loading = ref(true)
 const newAnnouncement = ref('')
 const posting = ref(false)
@@ -246,6 +252,12 @@ async function load() {
     announcements.value = a
     invitees.value = i
     invitableFriends.value = f
+    // Retour du formulaire après un changement d'heure, de lieu ou une annulation : on fait partager l'info
+    if (e?.is_organizer && pendingShare.value?.slug === props.slug) {
+      const body = pendingShare.value.body
+      pendingShare.value = null
+      shareAnnouncement(body)
+    }
   } catch (err) {
     if (seq === loadSeq) await toast((err as Error).message, 'danger')
   } finally {
@@ -289,14 +301,48 @@ function shareAnnouncement(body: string) {
   })
 }
 
-function shareReminder() {
-  if (!event.value) return
-  void openShareSheet({
-    header: 'Relancer les invités',
-    title: event.value.title,
-    text: reminderText(event.value.title, sharedUrl.value, pending.value.map((i) => i.display_name)),
-    url: sharedUrl.value,
+/**
+ * Relancer : ceux qui n'ont pas répondu et/ou ceux qui ont dit « peut-être ».
+ * Réponses privées : pas de prénoms dans le groupe, ils révéleraient qui a répondu quoi.
+ */
+async function shareReminder() {
+  const e = event.value
+  if (!e) return
+  const named = (names: string[]) => (e.show_guest_list ? names : [])
+  const pendingNames = pending.value.map((i) => i.display_name)
+  const maybeNames = guests.value.filter((g) => g.status === 'maybe').map((g) => g.display_name)
+
+  const share = (text: string) =>
+    openShareSheet({ header: 'Relancer les invités', title: e.title, text, url: sharedUrl.value })
+  const options: { text: string; share: () => Promise<void> }[] = []
+  // Sans liste d'invités attendus, on ne sait pas qui n'a pas répondu : message général
+  if (!invitees.value.length || pendingNames.length) {
+    options.push({
+      text: invitees.value.length ? `Pas encore répondu · ${pendingNames.length}` : 'Ceux qui n’ont pas répondu',
+      share: () => share(reminderText(e.title, sharedUrl.value, named(pendingNames))),
+    })
+  }
+  if (maybeNames.length) {
+    options.push({
+      text: `Peut-être · ${maybeNames.length}`,
+      share: () => share(maybeText(e.title, sharedUrl.value, named(maybeNames))),
+    })
+  }
+  if (!options.length) {
+    options.push({ text: '', share: () => share(reminderText(e.title, sharedUrl.value)) })
+  }
+  if (options.length === 1) {
+    await options[0]!.share()
+    return
+  }
+  const sheet = await actionSheetController.create({
+    header: 'Relancer',
+    buttons: [
+      ...options.map((o) => ({ text: o.text, handler: () => void o.share() })),
+      { text: 'Annuler', role: 'cancel' },
+    ],
   })
+  await sheet.present()
 }
 
 async function publishAnnouncement() {
@@ -418,6 +464,13 @@ watch([() => currentUser.value?.id, mergedVersion], () => void load())
   border: 1px solid color-mix(in srgb, var(--t-accent) 45%, transparent);
   border-radius: 14px;
   padding: 14px 16px;
+}
+.kind-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 5px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
 }
 .announce-head {
   color: var(--t-accent);

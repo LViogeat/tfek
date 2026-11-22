@@ -51,6 +51,7 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
 - Organisateur : publier une info puis la partager, inviter, relancer, supprimer une info
 - **Invités attendus** : l'organisateur ajoute des prénoms (« Alex, Inès et Sam »). L'invité qui ouvre le lien se reconnaît d'un appui (« C'est toi ? ») au lieu de taper son prénom, et l'organisateur voit qui n'a **pas encore répondu**. La relance cite ces prénoms. Aucune étape en plus pour l'invité (« Autre prénom » reste possible). Les invités ne voient que les prénoms encore libres, jamais les réponses des autres par ce biais.
 - **Aperçu riche du lien** (WhatsApp, Messenger, iMessage, Telegram…) : image billet 1200 × 630 aux couleurs de l'event, titre, date, lieu et, si l'organisateur l'autorise, les réponses (« Alex, Inès et 10 autres viennent »). Rendu par des fonctions Vercel (`api/`), envoyé uniquement aux robots des messageries.
+- **Dupliquer** un évènement (une semaine plus tard, avec les invités) ; **relancer** ceux qui n'ont pas répondu ou les « peut-être » ; **changement d'heure, de date ou de lieu** : info publiée automatiquement (« Nouvelle heure : … (au lieu de 20:00) ») et partage proposé
 - Comptes : code e-mail, fusion invité → compte, tableau de bord Organisés / Invitations, prénom modifiable
 - **Amis** (comptes seulement, jamais demandé à celui qui répond par le lien) : chacun a un **lien d'ami** à partager dans WhatsApp ; l'ouvrir rend amis tout de suite. Suggestions parmi les personnes croisées aux évènements (demande à accepter). Pas de recherche par e-mail, pour ne rien exposer. L'organisateur **invite ses amis d'un appui** : l'évènement apparaît dans leurs invitations (« À répondre ») sans passer par un message. Les amis sont repérés dans la liste des réponses.
 
@@ -59,9 +60,9 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
 Décidée le 22/11/2026. Le détail de chaque chantier est dans [`SPECS.md`](SPECS.md).
 
 1. **Mise en ligne de test en France** : Supabase Paris, fonctions Vercel à Paris, SMTP Brevo, domaine. Pas-à-pas dans [`DEPLOIEMENT.md`](DEPLOIEMENT.md), puis vérifications sur de vrais téléphones.
-2. **Dupliquer un évènement**, avec les invités.
-3. **Relancer les « peut-être »**, avec un message pré-rédigé.
-4. **Prévenir quand l'heure ou le lieu change** : info publiée automatiquement et partage proposé.
+2. ~~Dupliquer un évènement~~ (fait).
+3. ~~Relancer les « peut-être »~~ (fait).
+4. ~~Prévenir quand l'heure ou le lieu change~~ (fait).
 5. **Socle RGPD** : supprimer son compte, effacer ses réponses, télécharger ses données, durées de conservation, pages légales.
 6. **Co-organisateurs**, choisis parmi ses amis.
 7. **Notifications** : e-mail pour les comptes, push web pour qui l'accepte, rappel la veille, changements, infos.

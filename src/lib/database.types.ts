@@ -25,14 +25,14 @@ export type Database = {
           Tables: {
             "announcements": {
                   Row: {
-                    "author_id": string,"body": string,"created_at": string,"event_id": string,"id": string
+                    "author_id": string,"body": string,"created_at": string,"event_id": string,"id": string,"kind": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"body": string,"created_at"?: string,"event_id": string,"id"?: string
+                    "author_id"?: string,"body": string,"created_at"?: string,"event_id": string,"id"?: string,"kind"?: string
                   }
                   Update: {
-                    "author_id"?: string,"body"?: string,"created_at"?: string,"event_id"?: string,"id"?: string
+                    "author_id"?: string,"body"?: string,"created_at"?: string,"event_id"?: string,"id"?: string,"kind"?: string
                   }
                   Relationships: [
                     {
@@ -157,6 +157,9 @@ isOneToOne: false
 "are_friends":
 { Args: { "p_a": string,"p_b": string }; Returns: boolean
                            },
+"copy_invitees":
+{ Args: { "p_from": string,"p_to": string }; Returns: number
+                           },
 "create_merge_token":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
@@ -176,7 +179,7 @@ isOneToOne: false
                            },
 "get_event_announcements":
 { Args: { "p_slug": string }; Returns: {
-              "body": string,"created_at": string,"id": string
+              "body": string,"created_at": string,"id": string,"kind": string
             }[]
                            },
 "get_event_guests":

@@ -474,6 +474,49 @@ describe('amis', () => {
   })
 })
 
+describe('dupliquer et prévenir des changements', () => {
+  it('copy_invitees : les amis restent rattachés, les autres prénoms sont copiés libres', async () => {
+    const orga = await user('orga@test.fr')
+    const friend = await user('invite@test.fr')
+    const code = (await orga.from('profiles').select('friend_code').eq('id', '11111111-1111-1111-1111-111111111111').single()).data!.friend_code
+    await friend.rpc('add_friend_by_code', { p_code: code })
+    const mk = async () =>
+      (await orga.from('events').insert({ title: 'Foot', starts_at: new Date(Date.now() + 86400e3).toISOString() }).select().single()).data!.slug
+    const [a, b] = [await mk(), await mk()]
+    await orga.rpc('add_invitees', { p_slug: a, p_names: ['Inès', 'Sam'] })
+    await orga.rpc('invite_friends', { p_slug: a, p_user_ids: ['22222222-2222-2222-2222-222222222222'] })
+    // Sam a répondu en invité anonyme : son prénom est copié sans lui
+    const g = await guest()
+    await g.rpc('rsvp', { p_slug: a, p_status: 'going', p_display_name: 'Sam' })
+
+    // Un invité ou un autre compte ne peut pas copier
+    expect((await friend.rpc('copy_invitees', { p_from: a, p_to: b })).error).not.toBeNull()
+    expect((await orga.rpc('copy_invitees', { p_from: a, p_to: b })).data).toBe(3)
+    const copied = (await orga.rpc('get_event_invitees', { p_slug: b })).data!
+    expect(copied.map((i) => [i.display_name, i.status])).toEqual([['Alex', null], ['Inès', null], ['Sam', null]])
+    // Alex (ami) voit déjà la copie dans ses invitations ; l'invité anonyme non
+    const { data: mine } = await friend.from('invitees').select('events(slug)').eq('user_id', '22222222-2222-2222-2222-222222222222')
+    expect(mine?.map((r) => r.events?.slug)).toContain(b)
+    expect((await g.rpc('get_event_invitees', { p_slug: b })).data?.some((i) => i.is_me)).toBe(false)
+    // Recopier n'ajoute rien
+    expect((await orga.rpc('copy_invitees', { p_from: a, p_to: b })).data).toBe(0)
+    await orga.rpc('remove_friend', { p_user: '22222222-2222-2222-2222-222222222222' })
+  })
+
+  it('les infos portent leur type, lisible par tous avec le lien', async () => {
+    const orga = await user('orga@test.fr')
+    const { data: ev } = await orga
+      .from('events')
+      .insert({ title: 'Ciné', starts_at: new Date(Date.now() + 86400e3).toISOString() })
+      .select()
+      .single()
+    expect((await orga.from('announcements').insert({ event_id: ev!.id, body: 'Nouvelle heure : 21:00', kind: 'change' })).error).toBeNull()
+    expect((await orga.from('announcements').insert({ event_id: ev!.id, body: 'x', kind: 'autre' })).error).not.toBeNull()
+    const { data } = await client().rpc('get_event_announcements', { p_slug: ev!.slug })
+    expect(data?.map((a) => [a.body, a.kind])).toEqual([['Nouvelle heure : 21:00', 'change']])
+  })
+})
+
 describe('fusion invité → compte', () => {
   it('les réponses anonymes sont rattachées au compte après connexion', async () => {
     const c = await guest()

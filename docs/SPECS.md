@@ -10,9 +10,9 @@ hors périmètre. Les libellés entre guillemets sont ceux de l'interface : ils 
 | # | Chantier | Taille | Dépend de |
 |---|---|---|---|
 | 1 | [Mise en ligne de test en France](#1-mise-en-ligne-de-test-en-france) | S | — |
-| 2 | [Dupliquer un évènement](#2-dupliquer-un-évènement) | S | — |
-| 3 | [Relancer les « peut-être »](#3-relancer-les--peut-être-) | S | — |
-| 4 | [Prévenir quand l'heure ou le lieu change](#4-prévenir-quand-lheure-ou-le-lieu-change) | S | — |
+| 2 | [Dupliquer un évènement](#2-dupliquer-un-évènement) — **fait** | S | — |
+| 3 | [Relancer les « peut-être »](#3-relancer-les--peut-être-) — **fait** | S | — |
+| 4 | [Prévenir quand l'heure ou le lieu change](#4-prévenir-quand-lheure-ou-le-lieu-change) — **fait** | S | — |
 | 5 | [Socle RGPD](#5-socle-rgpd) | M | 1 |
 | 6 | [Co-organisateurs](#6-co-organisateurs) | M | — |
 | 7 | [Notifications et rappel la veille](#7-notifications-et-rappel-la-veille) | L | 1, 4 |
