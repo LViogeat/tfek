@@ -9,7 +9,7 @@
       <p>{{ formatShortDate(event.starts_at) }}<template v-if="event.location"> · {{ event.location }}</template></p>
     </ion-label>
     <RsvpBadge v-if="status" slot="end" :status="status" />
-    <ion-badge v-else-if="status === null && !event.cancelled_at" slot="end" class="mono to-answer">À répondre</ion-badge>
+    <ion-badge v-else-if="status === null && !event.cancelled_at && !isPast" slot="end" class="mono to-answer">À répondre</ion-badge>
     <ion-badge v-else-if="event.cancelled_at" slot="end" color="medium">Annulé</ion-badge>
   </ion-item>
 </template>

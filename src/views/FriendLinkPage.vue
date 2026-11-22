@@ -45,6 +45,12 @@
   </ion-page>
 </template>
 
+<script lang="ts">
+// Partagé entre les instances de la page (Ionic en garde une en cache) : un lien n'est ajouté
+// qu'une fois au retour de connexion
+const finishing = new Set<string>()
+</script>
+
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -74,11 +80,6 @@ async function load() {
     const l = await getFriendLink(props.code)
     if (seq !== loadSeq) return
     link.value = l
-    // Retour de connexion après « Ajouter en ami » : on termine l'ajout
-    if (l && route.query.add === '1' && isRegistered.value && !l.is_me && l.state !== 'friends') {
-      await router.replace(`/ami/${props.code}`)
-      await add()
-    }
   } catch (e) {
     if (seq === loadSeq) await toast((e as Error).message, 'danger')
   } finally {
@@ -109,7 +110,22 @@ async function add() {
   }
 }
 
-onIonViewWillEnter(load)
+/** Retour de connexion après « Ajouter en ami » : on termine l'ajout, depuis la page affichée seulement. */
+async function enter() {
+  await load()
+  const l = link.value
+  if (route.query.add !== '1' || !l || l.is_me || l.state === 'friends' || !isRegistered.value) return
+  if (finishing.has(props.code)) return
+  finishing.add(props.code)
+  try {
+    await router.replace(`/ami/${props.code}`)
+    await add()
+  } finally {
+    finishing.delete(props.code)
+  }
+}
+
+onIonViewWillEnter(enter)
 watch(() => currentUser.value?.id, () => void load())
 </script>
 

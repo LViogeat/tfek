@@ -61,8 +61,11 @@ export function announcementText(title: string, body: string, url: string): stri
 
 /** Avec les prénoms de ceux qui n'ont pas répondu, pour les interpeller dans le groupe. */
 export function reminderText(title: string, url: string, pending: string[] = []): string {
-  if (pending.length && pending.length <= 8) {
-    return `Petit rappel pour « ${title} ». ${joinNames(pending)}, dis-moi si tu viens : ${url}`
+  if (pending.length === 1) {
+    return `Petit rappel pour « ${title} ». ${pending[0]}, dis-moi si tu viens : ${url}`
+  }
+  if (pending.length > 1 && pending.length <= 8) {
+    return `Petit rappel pour « ${title} ». ${joinNames(pending)}, dites-moi si vous venez : ${url}`
   }
   return `Petit rappel pour « ${title} ». Si ce n’est pas déjà fait, dis-moi si tu viens : ${url}`
 }

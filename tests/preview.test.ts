@@ -3,7 +3,7 @@ import {
   goingNames, imageVersion, isValidSlug, memoizeSuccess, longDate, ogImageTree, previewDescription, previewHtml,
   responsesSentence, shortPlace, ticketDate, type PreviewEvent, type PreviewGuest,
 } from '../api/_lib/preview'
-import { shareUrl } from '../src/lib/share'
+import { reminderText, shareUrl } from '../src/lib/share'
 
 const EVENT: PreviewEvent = {
   slug: 'k7m2qx9pda',
@@ -139,5 +139,13 @@ describe('chargement des polices', () => {
     expect(await load()).toBe('ok')
     expect(await load()).toBe('ok')
     expect(calls).toBe(2)
+  })
+})
+
+describe('relance', () => {
+  it('s’accorde avec le nombre de prénoms', () => {
+    expect(reminderText('Dîner', 'U', ['Alex'])).toBe('Petit rappel pour « Dîner ». Alex, dis-moi si tu viens : U')
+    expect(reminderText('Dîner', 'U', ['Alex', 'Inès'])).toBe('Petit rappel pour « Dîner ». Alex et Inès, dites-moi si vous venez : U')
+    expect(reminderText('Dîner', 'U')).toContain('Si ce n’est pas déjà fait')
   })
 })

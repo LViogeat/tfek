@@ -312,8 +312,11 @@ as $$
   where e.slug = p_slug;
 $$;
 
--- Invités attendus. Les invités ne voient que les prénoms libres (pour dire « c'est moi ») et le leur ;
--- l'organisateur les voit tous, avec leur réponse (null : pas encore répondu).
+-- Invités attendus. L'organisateur les voit tous, avec leur réponse (null : pas encore répondu).
+-- Les invités ne voient jamais de réponse ici :
+--  * liste des invités publique : seulement les prénoms libres (pour dire « c'est moi ») et le leur ;
+--  * réponses privées : tous les prénoms, pris ou non, sinon un prénom qui disparaît trahirait
+--    que la personne a répondu.
 create or replace function public.get_event_invitees(p_slug text)
 returns table (id uuid, display_name text, is_me boolean, status public.rsvp_status)
 language sql
@@ -327,7 +330,7 @@ as $$
   join public.invitees i on i.event_id = e.id
   left join public.rsvps r on r.event_id = e.id and r.user_id = i.user_id
   where e.slug = p_slug
-    and (e.organizer_id = auth.uid() or i.user_id is null or i.user_id = auth.uid())
+    and (e.organizer_id = auth.uid() or not e.show_guest_list or i.user_id is null or i.user_id = auth.uid())
   order by lower(i.display_name);
 $$;
 
@@ -428,7 +431,12 @@ begin
       raise exception 'Ce prénom n''est plus dans la liste' using errcode = 'P0002';
     end if;
     if v_invitee_user is not null and v_invitee_user <> auth.uid() then
-      raise exception 'Ce prénom a déjà répondu' using errcode = 'P0001';
+      if v_event.show_guest_list then
+        raise exception 'Ce prénom a déjà répondu' using errcode = 'P0001';
+      end if;
+      -- Réponses privées : refuser révélerait que ce prénom a répondu. La réponse est enregistrée
+      -- sous ce prénom, sans le rattacher (l'organisateur verra deux réponses à ce nom).
+      v_invitee_id := null;
     end if;
   elsif v_name is not null and v_name <> '' then
     -- Un prénom tapé qui correspond à un invité libre de la liste vaut « c'est moi »
@@ -513,6 +521,9 @@ declare
   v_anon uuid;
   v_count int;
   v_updated int;
+  -- Évènements où la réponse anonyme l'emporte sur celle du compte, et où elle est gardée
+  v_won uuid[];
+  v_kept uuid[];
 begin
   if not public.is_registered() then
     raise exception 'Compte inscrit requis' using errcode = '28000';
@@ -525,6 +536,17 @@ begin
   if v_anon is null or v_anon = auth.uid() then
     return 0;
   end if;
+
+  v_won := array(
+    select a.event_id from public.rsvps a
+    join public.rsvps r on r.event_id = a.event_id and r.user_id = auth.uid()
+    where a.user_id = v_anon and a.updated_at > r.updated_at
+  );
+  v_kept := v_won || array(
+    select a.event_id from public.rsvps a
+    where a.user_id = v_anon
+      and not exists (select 1 from public.rsvps r where r.event_id = a.event_id and r.user_id = auth.uid())
+  );
 
   -- Même évènement des deux côtés : la réponse la plus récente gagne
   update public.rsvps r
@@ -547,12 +569,17 @@ begin
 
   delete from public.rsvps where user_id = v_anon;
 
-  -- Les « c'est moi » suivent, sauf si le compte en avait déjà un pour le même évènement
-  update public.invitees i set user_id = auth.uid()
-  where i.user_id = v_anon
-    and not exists (
-      select 1 from public.invitees i2 where i2.event_id = i.event_id and i2.user_id = auth.uid()
+  -- Le « c'est moi » suit la réponse gardée : celui du compte est libéré là où la réponse anonyme
+  -- l'emporte (ou là où elle apporte son propre prénom), puis celui de l'anonyme le remplace.
+  update public.invitees i set user_id = null
+  where i.user_id = auth.uid()
+    and (
+      i.event_id = any(v_won)
+      or (i.event_id = any(v_kept)
+          and exists (select 1 from public.invitees i2 where i2.event_id = i.event_id and i2.user_id = v_anon))
     );
+  update public.invitees set user_id = auth.uid()
+  where user_id = v_anon and event_id = any(v_kept);
   update public.invitees set user_id = null where user_id = v_anon;
 
   update public.profiles p set display_name = (select display_name from public.profiles where id = v_anon)
@@ -832,6 +859,8 @@ as $$
   left join public.profiles p on p.id = o.id
   where e.slug = p_slug
     and e.organizer_id = auth.uid()
+    -- Sans prénom, il n'apparaîtrait que comme « Sans prénom » dans la liste et la relance
+    and btrim(coalesce(p.display_name, '')) <> ''
     and not exists (select 1 from public.invitees i where i.event_id = e.id and i.user_id = o.id)
     and not exists (select 1 from public.rsvps r where r.event_id = e.id and r.user_id = o.id)
   order by lower(coalesce(p.display_name, ''));
@@ -849,6 +878,8 @@ declare
   v_event_id uuid;
   v_friend record;
   v_count int := 0;
+  v_name text;
+  v_n int;
 begin
   select id into v_event_id from public.events where slug = p_slug and organizer_id = auth.uid();
   if v_event_id is null then
@@ -856,20 +887,30 @@ begin
   end if;
 
   for v_friend in
-    select distinct o.id, coalesce(p.display_name, 'Sans prénom') as name
+    select distinct o.id, btrim(p.display_name) as name
     from unnest(p_user_ids) as o(id)
-    left join public.profiles p on p.id = o.id
+    join public.profiles p on p.id = o.id
     where public.are_friends(o.id, auth.uid())
+      and btrim(coalesce(p.display_name, '')) <> ''
       and not exists (select 1 from public.invitees i where i.event_id = v_event_id and i.user_id = o.id)
   loop
     -- Le même prénom, encore libre, est déjà dans la liste : c'est lui
     update public.invitees set user_id = v_friend.id
     where event_id = v_event_id and lower(display_name) = lower(v_friend.name) and user_id is null;
-    if not found then
-      insert into public.invitees (event_id, display_name, user_id)
-      values (v_event_id, v_friend.name, v_friend.id)
-      on conflict do nothing;
+    if found then
+      v_count := v_count + 1;
+      continue;
     end if;
+    -- Prénom déjà pris par quelqu'un d'autre : « Alex 2 », « Alex 3 »…
+    v_n := 1;
+    loop
+      v_name := case when v_n = 1 then v_friend.name else left(v_friend.name, 56) || ' ' || v_n end;
+      insert into public.invitees (event_id, display_name, user_id)
+      values (v_event_id, v_name, v_friend.id)
+      on conflict do nothing;
+      exit when found or v_n >= 50;
+      v_n := v_n + 1;
+    end loop;
     if found then
       v_count := v_count + 1;
     end if;

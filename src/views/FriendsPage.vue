@@ -16,7 +16,18 @@
 
       <div class="page-narrow">
         <div class="ion-padding">
-          <ion-button expand="block" :disabled="!code" @click="shareLink">
+          <!-- Sans prénom, les amis verraient « Sans prénom » et ne pourraient pas t'inviter -->
+          <form v-if="!loading && !myName" class="name-form" @submit.prevent="saveName">
+            <ion-input
+              v-model="nameInput"
+              class="name-input"
+              placeholder="Ton prénom"
+              :maxlength="60"
+              autocomplete="given-name"
+            />
+            <ion-button type="submit" :disabled="!nameInput.trim()">Enregistrer</ion-button>
+          </form>
+          <ion-button expand="block" :disabled="!code || !myName" @click="shareLink">
             <ion-icon slot="start" :icon="shareOutline" />
             Partager mon lien d’ami
           </ion-button>
@@ -86,7 +97,7 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton, IonButton, IonIcon,
-  IonRefresher, IonRefresherContent, alertController, toastController, onIonViewWillEnter,
+  IonRefresher, IonRefresherContent, IonInput, alertController, toastController, onIonViewWillEnter,
 } from '@ionic/vue'
 import { closeOutline, shareOutline } from 'ionicons/icons'
 import { currentUser, isRegistered } from '@/lib/auth'
@@ -95,11 +106,14 @@ import {
   requestFriend, type Friend, type Suggestion,
 } from '@/lib/friends'
 import { openShareSheet } from '@/lib/shareSheet'
+import { getMyDisplayName, setMyDisplayName } from '@/lib/events'
 
 const router = useRouter()
 const all = ref<Friend[]>([])
 const suggestions = ref<Suggestion[]>([])
 const code = ref<string | null>(null)
+const myName = ref('')
+const nameInput = ref('')
 const loading = ref(true)
 // Personne en cours de traitement (évite le double appui)
 const busy = ref<string | null>(null)
@@ -119,11 +133,17 @@ async function load() {
   }
   loading.value = true
   try {
-    const [f, s, c] = await Promise.all([listFriends(), listSuggestions(), getMyFriendCode(user.id)])
+    const [f, s, c, n] = await Promise.all([
+      listFriends(),
+      listSuggestions(),
+      getMyFriendCode(user.id),
+      getMyDisplayName(user.id),
+    ])
     if (seq !== loadSeq) return
     all.value = f
     suggestions.value = s
     code.value = c
+    myName.value = n?.trim() ?? ''
   } catch (e) {
     if (seq === loadSeq) await toast((e as Error).message, 'danger')
   } finally {
@@ -187,6 +207,17 @@ async function confirmRemove(f: Friend) {
   await alert.present()
 }
 
+async function saveName() {
+  const n = nameInput.value.trim()
+  if (!n || !currentUser.value) return
+  try {
+    await setMyDisplayName(currentUser.value.id, n)
+    myName.value = n
+  } catch (e) {
+    await toast((e as Error).message, 'danger')
+  }
+}
+
 function shareLink() {
   if (!code.value) return
   const url = friendLinkUrl(code.value)
@@ -207,6 +238,18 @@ watch(() => currentUser.value?.id, () => void load())
 </script>
 
 <style scoped>
+.name-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 0 4px 0 14px;
+  border-radius: 12px;
+  background: var(--tfek-surface);
+}
+.name-input {
+  flex: 1;
+}
 .people {
   list-style: none;
   margin: 0 16px;

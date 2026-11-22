@@ -210,11 +210,12 @@ describe('aperçu du lien (fonctions Vercel)', () => {
 })
 
 describe('invités attendus', () => {
-  async function eventWithInvitees(names: string[]) {
+  /** `isPrivate` : réponses visibles par l'organisateur seul. */
+  async function eventWithInvitees(names: string[], isPrivate = false) {
     const orga = await user('orga@test.fr')
     const { data: ev } = await orga
       .from('events')
-      .insert({ title: 'Dîner', starts_at: new Date(Date.now() + 86400e3).toISOString(), show_guest_list: false, show_counts: false })
+      .insert({ title: 'Dîner', starts_at: new Date(Date.now() + 86400e3).toISOString(), show_guest_list: !isPrivate, show_counts: !isPrivate })
       .select()
       .single()
     return { orga, slug: ev!.slug, added: (await orga.rpc('add_invitees', { p_slug: ev!.slug, p_names: names })) }
@@ -268,6 +269,25 @@ describe('invités attendus', () => {
     expect(forOrga.map((i) => [i.display_name, i.status])).toEqual([['Inès', 'going'], ['Sam', null]])
   })
 
+  it('réponses privées : un prénom pris reste affiché et se choisit sans rien révéler', async () => {
+    const { orga, slug } = await eventWithInvitees(['Inès', 'Sam'], true)
+    const g = await guest()
+    const ines = (await g.rpc('get_event_invitees', { p_slug: slug })).data!.find((i) => i.display_name === 'Inès')!
+    await g.rpc('rsvp', { p_slug: slug, p_status: 'going', p_display_name: '', p_invitee_id: ines.id })
+
+    // Inès a répondu, mais les autres voient toujours les deux prénoms, sans réponse
+    const g2 = await guest()
+    const seen = (await g2.rpc('get_event_invitees', { p_slug: slug })).data!
+    expect(seen.map((i) => [i.display_name, i.status, i.is_me])).toEqual([['Inès', null, false], ['Sam', null, false]])
+    // Choisir un prénom déjà pris ne renvoie pas d'erreur : la réponse est gardée, sans rattachement
+    const res = await g2.rpc('rsvp', { p_slug: slug, p_status: 'declined', p_display_name: '', p_invitee_id: ines.id })
+    expect(res.error).toBeNull()
+    expect(((await g2.rpc('get_event', { p_slug: slug })).data as any).my_rsvp).toMatchObject({ display_name: 'Inès', invitee_id: null })
+    // Le prénom reste à la première personne
+    const forOrga = (await orga.rpc('get_event_invitees', { p_slug: slug })).data!
+    expect(forOrga.map((i) => [i.display_name, i.status])).toEqual([['Inès', 'going'], ['Sam', null]])
+  })
+
   it('un prénom tapé qui est dans la liste vaut « c’est moi » ; changer d’avis libère le prénom', async () => {
     const { orga, slug } = await eventWithInvitees(['Inès', 'Sam'])
     const g = await guest()
@@ -289,6 +309,23 @@ describe('invités attendus', () => {
     await orga.rpc('add_invitees', { p_slug: slug, p_names: ['léa', 'Noé'] })
     const forOrga = (await orga.rpc('get_event_invitees', { p_slug: slug })).data!
     expect(forOrga.map((i) => [i.display_name, i.status])).toEqual([['léa', 'going'], ['Noé', null]])
+  })
+
+  it('fusion : le « c’est moi » suit la réponse gardée', async () => {
+    const { orga, slug } = await eventWithInvitees(['Alex', 'Inès'])
+    const ids = Object.fromEntries((await orga.rpc('get_event_invitees', { p_slug: slug })).data!.map((i) => [i.display_name, i.id]))
+    // Le compte répond « Alex », puis, plus tard et en invité, la même personne répond « Inès »
+    const account = await user('invite@test.fr')
+    await account.rpc('rsvp', { p_slug: slug, p_status: 'going', p_display_name: '', p_invitee_id: ids.Alex })
+    const c = await guest()
+    await c.rpc('rsvp', { p_slug: slug, p_status: 'maybe', p_display_name: '', p_invitee_id: ids['Inès'] })
+    const { data: token } = await c.rpc('create_merge_token')
+    await c.auth.signInWithPassword({ email: 'invite@test.fr', password: 'password' })
+    await c.rpc('merge_anonymous_user', { p_token: token! })
+
+    expect(((await c.rpc('get_event', { p_slug: slug })).data as any).my_rsvp).toMatchObject({ display_name: 'Inès', invitee_id: ids['Inès'] })
+    const forOrga = (await orga.rpc('get_event_invitees', { p_slug: slug })).data!
+    expect(forOrga.map((i) => [i.display_name, i.status])).toEqual([['Alex', null], ['Inès', 'maybe']])
   })
 
   it('le « c’est moi » suit l’invité quand il crée son compte', async () => {
@@ -419,6 +456,15 @@ describe('amis', () => {
     expect((await stranger.c.from('events').select().eq('id', ev!.id)).data).toEqual([])
     // Un autre compte ne peut pas inviter à la place de l'organisateur
     expect((await b.c.rpc('invite_friends', { p_slug: ev!.slug, p_user_ids: [orga.id] })).error).not.toBeNull()
+
+    // Un ami sans prénom n'est pas proposé, un homonyme devient « Paul 2 »
+    const nameless = await newUser('Paul')
+    await nameless.c.from('profiles').update({ display_name: null }).eq('id', nameless.id)
+    const homonym = await newUser('Paul')
+    for (const f of [nameless, homonym]) await f.c.rpc('add_friend_by_code', { p_code: await codeOf(orga.c, orga.id) })
+    expect((await orga.c.rpc('get_invitable_friends', { p_slug: ev!.slug })).data).toEqual([{ user_id: homonym.id, display_name: 'Paul' }])
+    expect((await orga.c.rpc('invite_friends', { p_slug: ev!.slug, p_user_ids: [nameless.id, homonym.id] })).data).toBe(1)
+    expect((await orga.c.rpc('get_event_invitees', { p_slug: ev!.slug })).data?.map((i) => i.display_name)).toEqual(['Paul', 'Paul 2'])
 
     // Paul répond : l'organisateur le voit, marqué comme ami
     await b.c.rpc('rsvp', { p_slug: ev!.slug, p_status: 'going', p_display_name: 'Paul' })
