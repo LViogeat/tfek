@@ -52,8 +52,10 @@ Le pas-à-pas existe déjà dans [`DEPLOIEMENT.md`](DEPLOIEMENT.md). Ce chantier
   mondial de Vercel : ils ne contiennent aucune donnée personnelle.
 - **E-mails** : SMTP **Brevo** (société française, offre gratuite) dans Supabase → Authentication → SMTP,
   plutôt que Resend. Les mêmes identifiants serviront aux notifications (chantier 7).
-- **Domaine** : à choisir (par exemple `tfek.fr`). `VITE_PUBLIC_URL` et les URL de redirection de Supabase
-  suivent.
+- **Domaine** : `govetia.com` (décidé). L'app est servie sur **`tfek.govetia.com`**, ce qui laisse
+  `govetia.com` libre pour le site de la société. `VITE_PUBLIC_URL` et les URL de redirection de Supabase
+  suivent. Les e-mails partent de `@govetia.com` : domaine d'envoi authentifié chez Brevo (SPF, DKIM, DMARC
+  dans le DNS).
 
 **Vérifications sur téléphone** (iPhone et Android, à noter dans `DEPLOIEMENT.md`) :
 - aperçu du lien dans WhatsApp, Messenger, iMessage ; mise à jour de l'aperçu après une réponse (`?r=`) ;
@@ -209,7 +211,8 @@ Tâche `pg_cron` quotidienne (extension disponible sur Supabase et en auto-hébe
 | Jetons de fusion | expirés | supprimés (déjà 1 jour) |
 | Abonnements push | refusés par le navigateur (410) | supprimés à l'envoi |
 
-Durées à valider par le porteur du projet. Elles sont inscrites dans la politique de confidentialité.
+Durées validées par le porteur du projet le 22/11/2026. Elles sont inscrites dans la politique de
+confidentialité.
 
 ### 5.5 Pages légales
 - Routes `/confidentialite` et `/mentions-legales`, pages statiques dans l'app, au style de l'app.
@@ -219,7 +222,12 @@ Durées à valider par le porteur du projet. Elles sont inscrites dans la politi
   (5.4), sous-traitants et lieux (Supabase sur AWS Paris, Vercel, Brevo), droits (accès, rectification,
   effacement, portabilité, opposition), contact, réclamation auprès de la CNIL.
 - **Mentions légales** : éditeur, directeur de la publication, hébergeur.
-- Les informations sur l'éditeur sont à fournir par le porteur du projet (voir « Questions ouvertes »).
+- **Éditeur** : tant que la société Govetia n'existe pas, l'éditeur et le responsable du traitement sont le
+  porteur du projet, en personne physique (nom, adresse et e-mail à fournir au moment d'écrire la page). Une
+  personne qui édite un site à titre non professionnel peut ne publier que les coordonnées de l'hébergeur, à
+  condition de lui avoir communiqué les siennes, mais le RGPD impose de toute façon un contact pour exercer ses
+  droits : prévoir `contact@govetia.com`. À la création de Govetia, les deux pages passent au nom de la société
+  (raison sociale, siège, SIREN). À faire relire par un juriste avant le lancement public.
 
 ### 5.6 Le reste
 - **Registre des traitements** : `docs/RGPD.md`, tenu à jour à chaque chantier.
@@ -294,7 +302,7 @@ C'est le second manque face à Facebook.
 **Consentement**
 - Push : l'invité choisit. Après une réponse « Oui » ou « Peut-être », le bloc « C'est noté » propose
   « Me prévenir » à côté de « Créer mon compte ». Un appui → demande d'autorisation du navigateur.
-- E-mail : activé par défaut pour les comptes, pour les évènements où ils ont répondu oui ou peut-être et ceux
+- E-mail : activé par défaut pour les comptes (décidé), pour les évènements où ils ont répondu oui ou peut-être et ceux
   qu'ils organisent (service attendu). Réglage « E-mails » sur « Mon compte », lien de désinscription en un
   clic dans chaque e-mail.
 - Par évènement : « Ne plus être prévenu » sur la page (coupe push et e-mail pour cet évènement).
@@ -469,7 +477,9 @@ sondage) ; e2e « proposer 3 dates → 2 votes → choisir → info publiée ».
 Vercel hébergent à Paris mais sont des sociétés américaines (soumises au Cloud Act). À faire **avant le
 lancement public**.
 
-**Cible** (à choisir après comparaison des offres) : Scaleway, OVHcloud ou Clever Cloud.
+**Cible** : Scaleway, OVHcloud ou Clever Cloud, sans préférence du porteur du projet. La comparaison est la
+première étape du chantier : prix pour notre taille, Postgres managé, stockage objet et CDN en France,
+facilité de déploiement par script, qualité du support.
 
 | Brique | Aujourd'hui | Demain |
 |---|---|---|
@@ -493,11 +503,11 @@ valider avec le porteur.
 
 ---
 
-## Questions ouvertes (porteur du projet)
+## Décisions du porteur du projet (22/11/2026)
 
-1. **Mentions légales** : nom ou société éditrice, adresse, e-mail de contact, e-mail de modération.
-2. **Durées de conservation** (5.4) : 24 mois pour les évènements, 6 mois pour les anonymes, 3 ans pour les
-   comptes inactifs : d'accord ?
-3. **Nom de domaine**.
-4. **Notifications par e-mail actives par défaut** pour les comptes (7) : d'accord ?
-5. **Hébergeur français** (11) : préférence entre Scaleway, OVHcloud et Clever Cloud, ou comparaison à faire ?
+1. **Éditeur** : le porteur du projet en personne physique, puis la société **Govetia** dès sa création
+   (voir 5.5). Coordonnées à fournir au moment d'écrire les pages légales.
+2. **Durées de conservation** (5.4) : validées.
+3. **Domaine** : `govetia.com`, app sur `tfek.govetia.com` (voir 1).
+4. **E-mails de notification actifs par défaut** pour les comptes (7) : oui.
+5. **Hébergeur français** (11) : pas de préférence, comparaison au début du chantier.
