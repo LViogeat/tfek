@@ -34,3 +34,9 @@ insert into public.rsvps (event_id, user_id, status, display_name, plus_ones) va
 insert into public.announcements (event_id, author_id, body) values
   ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111',
    'Le code de la porte est 4521B, 3e étage à gauche !');
+
+-- Invités attendus : Alex a déjà répondu, Inès et Jordan pas encore
+insert into public.invitees (event_id, display_name, user_id) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'Alex', '22222222-2222-2222-2222-222222222222'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'Inès', null),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'Jordan', null);

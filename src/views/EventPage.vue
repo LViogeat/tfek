@@ -108,12 +108,25 @@
           <p v-if="event.is_organizer && !event.show_guest_list" class="muted small pad">
             {{ event.show_counts ? 'Liste visible par toi seul' : 'Réponses visibles par toi seul' }}
           </p>
-          <GuestList :guests="guests" />
+          <GuestList :guests="guests" :pending="event.is_organizer ? pending : []" @remove="removeInvitee" />
         </template>
         <p v-else-if="event.counts" class="muted pad">Liste des invités privée</p>
         <p v-else class="muted pad">Réponses privées</p>
 
         <div v-if="event.is_organizer && !event.cancelled_at" class="ion-padding">
+          <div class="add-invitees">
+            <ion-input
+              v-model="newInvitees"
+              class="add-input"
+              placeholder="Ajouter des invités"
+              :maxlength="2000"
+              autocapitalize="words"
+              @keyup.enter="addNames"
+            />
+            <ion-button :disabled="!newInvitees.trim() || adding" @click="addNames">
+              <ion-icon slot="icon-only" :icon="personAddOutline" />
+            </ion-button>
+          </div>
           <ion-button expand="block" fill="outline" color="dark" @click="shareReminder">
             <ion-icon slot="start" :icon="notificationsOutline" />
             Relancer ceux qui n’ont pas répondu
@@ -127,7 +140,13 @@
     </ion-content>
 
     <ion-footer v-if="event && !event.cancelled_at && !event.is_organizer" class="ion-no-border">
-      <RsvpBar :slug="slug" :my-rsvp="event.my_rsvp" :allow-plus-ones="event.allow_plus_ones" @answered="onAnswered">
+      <RsvpBar
+        :slug="slug"
+        :my-rsvp="event.my_rsvp"
+        :allow-plus-ones="event.allow_plus_ones"
+        :invitees="invitees"
+        @answered="onAnswered"
+      >
         <div v-if="showAccountNudge" class="nudge">
           <p><strong>C’est noté.</strong></p>
           <div class="nudge-actions">
@@ -145,21 +164,21 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   IonPage, IonHeader, IonToolbar, IonContent, IonFooter, IonButtons, IonBackButton, IonButton, IonIcon,
-  IonTextarea, IonSpinner,
+  IonTextarea, IonSpinner, IonInput,
   IonRefresher, IonRefresherContent, alertController, toastController, onIonViewWillEnter,
 } from '@ionic/vue'
 import {
-  megaphoneOutline, shareOutline, createOutline, trashOutline, notificationsOutline,
+  megaphoneOutline, shareOutline, createOutline, trashOutline, notificationsOutline, personAddOutline,
 } from 'ionicons/icons'
 import EventTicket from '@/components/EventTicket.vue'
 import RsvpBar from '@/components/RsvpBar.vue'
 import GuestList from '@/components/GuestList.vue'
 import { currentUser, isRegistered, mergedVersion } from '@/lib/auth'
 import {
-  deleteAnnouncement, getAnnouncements, getEvent, getGuests, postAnnouncement,
-  type Announcement, type EventDetails, type Guest, type RsvpStatus,
+  addInvitees, deleteAnnouncement, deleteInvitee, getAnnouncements, getEvent, getGuests, getInvitees,
+  postAnnouncement, type Announcement, type EventDetails, type Guest, type Invitee, type RsvpStatus,
 } from '@/lib/events'
-import { formatRelative } from '@/lib/format'
+import { formatRelative, parseNames } from '@/lib/format'
 import { themeStyle } from '@/lib/themes'
 import { announcementText, eventUrl, invitationText, reminderText, shareUrl } from '@/lib/share'
 import { openShareSheet } from '@/lib/shareSheet'
@@ -171,6 +190,11 @@ const route = useRoute()
 const event = ref<EventDetails | null>(null)
 const guests = ref<Guest[]>([])
 const announcements = ref<Announcement[]>([])
+const invitees = ref<Invitee[]>([])
+const newInvitees = ref('')
+const adding = ref(false)
+// Organisateur : prénoms de sa liste sans réponse
+const pending = computed(() => invitees.value.filter((i) => i.status === null))
 const loading = ref(true)
 const newAnnouncement = ref('')
 const posting = ref(false)
@@ -192,16 +216,18 @@ async function load() {
   loading.value = true
   try {
     const e = await getEvent(props.slug)
-    const [g, a] = e
+    const [g, a, i] = e
       ? await Promise.all([
           e.show_guest_list || e.is_organizer ? getGuests(props.slug) : Promise.resolve([]),
           getAnnouncements(props.slug),
+          getInvitees(props.slug),
         ])
-      : [[], []]
+      : [[], [], []]
     if (seq !== loadSeq) return
     event.value = e
     guests.value = g
     announcements.value = a
+    invitees.value = i
   } catch (err) {
     if (seq === loadSeq) await toast((err as Error).message, 'danger')
   } finally {
@@ -250,7 +276,7 @@ function shareReminder() {
   void openShareSheet({
     header: 'Relancer les invités',
     title: event.value.title,
-    text: reminderText(event.value.title, sharedUrl.value),
+    text: reminderText(event.value.title, sharedUrl.value, pending.value.map((i) => i.display_name)),
     url: sharedUrl.value,
   })
 }
@@ -268,6 +294,31 @@ async function publishAnnouncement() {
     await toast((err as Error).message, 'danger')
   } finally {
     posting.value = false
+  }
+}
+
+async function addNames() {
+  const names = parseNames(newInvitees.value)
+  if (!names.length || adding.value) return
+  adding.value = true
+  try {
+    const added = await addInvitees(props.slug, names)
+    newInvitees.value = ''
+    invitees.value = await getInvitees(props.slug)
+    if (added < names.length) await toast(added ? `${added} ajouté${added > 1 ? 's' : ''}, les autres étaient déjà là` : 'Déjà dans la liste')
+  } catch (err) {
+    await toast((err as Error).message, 'danger')
+  } finally {
+    adding.value = false
+  }
+}
+
+async function removeInvitee(invitee: Invitee) {
+  try {
+    await deleteInvitee(invitee.id)
+    invitees.value = invitees.value.filter((i) => i.id !== invitee.id)
+  } catch (err) {
+    await toast(`${invitee.display_name} n’a pas pu être retiré : ${(err as Error).message}`, 'danger')
   }
 }
 
@@ -395,6 +446,18 @@ watch([() => currentUser.value?.id, mergedVersion], () => void load())
 .counts {
   margin: -4px 16px 14px;
   font-size: 15px;
+}
+.add-invitees {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 0 4px 0 14px;
+  border-radius: 12px;
+  background: var(--tfek-surface);
+}
+.add-input {
+  flex: 1;
 }
 .pad {
   margin: 0 16px 12px;

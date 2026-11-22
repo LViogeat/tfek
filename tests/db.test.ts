@@ -68,7 +68,7 @@ describe('réponse sans compte', () => {
     expect((await g.rpc('rsvp', { p_slug: SLUG, p_status: 'going', p_display_name: name, p_plus_ones: 2 })).error).toBeNull()
 
     const { data: ev } = await g.rpc('get_event', { p_slug: SLUG })
-    expect((ev as any).my_rsvp).toEqual({ status: 'going', display_name: name, plus_ones: 2 })
+    expect((ev as any).my_rsvp).toEqual({ status: 'going', display_name: name, plus_ones: 2, invitee_id: null })
 
     const { data: guests } = await g.rpc('get_event_guests', { p_slug: SLUG })
     const me = guests!.filter((x) => x.is_me)
@@ -206,6 +206,100 @@ describe('aperçu du lien (fonctions Vercel)', () => {
 
   it('slug inconnu → pas d’event', async () => {
     expect((await loadPreview({ url: URL, key: KEY }, 'nexistepas')).event).toBeNull()
+  })
+})
+
+describe('invités attendus', () => {
+  async function eventWithInvitees(names: string[]) {
+    const orga = await user('orga@test.fr')
+    const { data: ev } = await orga
+      .from('events')
+      .insert({ title: 'Dîner', starts_at: new Date(Date.now() + 86400e3).toISOString(), show_guest_list: false, show_counts: false })
+      .select()
+      .single()
+    return { orga, slug: ev!.slug, added: (await orga.rpc('add_invitees', { p_slug: ev!.slug, p_names: names })) }
+  }
+
+  it('l’organisateur ajoute des prénoms, sans doublon', async () => {
+    const { orga, slug, added } = await eventWithInvitees(['Inès', ' inès ', 'Sam', ''])
+    expect(added.error).toBeNull()
+    expect(added.data).toBe(2)
+    expect((await orga.rpc('add_invitees', { p_slug: slug, p_names: ['SAM', 'Jo'] })).data).toBe(1)
+    const { data } = await orga.rpc('get_event_invitees', { p_slug: slug })
+    expect(data?.map((i) => [i.display_name, i.status])).toEqual([['Inès', null], ['Jo', null], ['Sam', null]])
+  })
+
+  it('seul l’organisateur ajoute ou retire des prénoms', async () => {
+    const { orga, slug } = await eventWithInvitees(['Inès'])
+    const g = await guest()
+    expect((await g.rpc('add_invitees', { p_slug: slug, p_names: ['Pirate'] })).error).not.toBeNull()
+    const other = await user('invite@test.fr')
+    expect((await other.rpc('add_invitees', { p_slug: slug, p_names: ['Pirate'] })).error).not.toBeNull()
+
+    const [ines] = (await orga.rpc('get_event_invitees', { p_slug: slug })).data!
+    await g.from('invitees').delete().eq('id', ines!.id)
+    expect((await orga.rpc('get_event_invitees', { p_slug: slug })).data).toHaveLength(1)
+    expect((await orga.from('invitees').delete().eq('id', ines!.id).select()).data).toHaveLength(1)
+  })
+
+  it('« c’est moi » : le prénom est pris, l’organisateur voit la réponse, les autres ne le voient plus', async () => {
+    const { orga, slug } = await eventWithInvitees(['Inès', 'Sam'])
+    const g = await guest()
+    const visible = (await g.rpc('get_event_invitees', { p_slug: slug })).data!
+    expect(visible.map((i) => [i.display_name, i.status])).toEqual([['Inès', null], ['Sam', null]])
+    const ines = visible.find((i) => i.display_name === 'Inès')!
+
+    expect((await g.rpc('rsvp', { p_slug: slug, p_status: 'going', p_display_name: '', p_invitee_id: ines.id })).error).toBeNull()
+    const me = ((await g.rpc('get_event', { p_slug: slug })).data as any).my_rsvp
+    expect(me).toMatchObject({ display_name: 'Inès', invitee_id: ines.id })
+    expect((await g.rpc('get_event_invitees', { p_slug: slug })).data?.find((i) => i.is_me)?.display_name).toBe('Inès')
+
+    // Un autre invité ne voit plus Inès et ne peut pas la prendre
+    const g2 = await guest()
+    expect((await g2.rpc('get_event_invitees', { p_slug: slug })).data?.map((i) => i.display_name)).toEqual(['Sam'])
+    const taken = await g2.rpc('rsvp', { p_slug: slug, p_status: 'declined', p_display_name: '', p_invitee_id: ines.id })
+    expect(taken.error?.message).toBe('Ce prénom a déjà répondu')
+
+    // Visiteur sans session : prénoms libres, jamais de réponse
+    const anon = (await client().rpc('get_event_invitees', { p_slug: slug })).data!
+    expect(anon.map((i) => [i.display_name, i.status, i.is_me])).toEqual([['Sam', null, false]])
+
+    const forOrga = (await orga.rpc('get_event_invitees', { p_slug: slug })).data!
+    expect(forOrga.map((i) => [i.display_name, i.status])).toEqual([['Inès', 'going'], ['Sam', null]])
+  })
+
+  it('un prénom tapé qui est dans la liste vaut « c’est moi » ; changer d’avis libère le prénom', async () => {
+    const { orga, slug } = await eventWithInvitees(['Inès', 'Sam'])
+    const g = await guest()
+    await g.rpc('rsvp', { p_slug: slug, p_status: 'maybe', p_display_name: 'sam' })
+    expect(((await g.rpc('get_event', { p_slug: slug })).data as any).my_rsvp.display_name).toBe('Sam')
+    const ines = (await g.rpc('get_event_invitees', { p_slug: slug })).data!.find((i) => i.display_name === 'Inès')!
+    await g.rpc('rsvp', { p_slug: slug, p_status: 'maybe', p_display_name: '', p_invitee_id: ines.id })
+    const forOrga = (await orga.rpc('get_event_invitees', { p_slug: slug })).data!
+    expect(forOrga.map((i) => [i.display_name, i.status])).toEqual([['Inès', 'maybe'], ['Sam', null]])
+    // Un prénom hors liste libère aussi
+    await g.rpc('rsvp', { p_slug: slug, p_status: 'maybe', p_display_name: 'Inès B.' })
+    expect((await orga.rpc('get_event_invitees', { p_slug: slug })).data!.every((i) => i.status === null)).toBe(true)
+  })
+
+  it('un prénom ajouté après coup est rattaché à celui qui a déjà répondu', async () => {
+    const { orga, slug } = await eventWithInvitees([])
+    const g = await guest()
+    await g.rpc('rsvp', { p_slug: slug, p_status: 'going', p_display_name: 'Léa' })
+    await orga.rpc('add_invitees', { p_slug: slug, p_names: ['léa', 'Noé'] })
+    const forOrga = (await orga.rpc('get_event_invitees', { p_slug: slug })).data!
+    expect(forOrga.map((i) => [i.display_name, i.status])).toEqual([['léa', 'going'], ['Noé', null]])
+  })
+
+  it('le « c’est moi » suit l’invité quand il crée son compte', async () => {
+    const { orga, slug } = await eventWithInvitees(['Alex'])
+    const c = await guest()
+    await c.rpc('rsvp', { p_slug: slug, p_status: 'going', p_display_name: 'Alex' })
+    const { data: token } = await c.rpc('create_merge_token')
+    await c.auth.signInWithPassword({ email: 'invite@test.fr', password: 'password' })
+    await c.rpc('merge_anonymous_user', { p_token: token! })
+    expect((await c.rpc('get_event_invitees', { p_slug: slug })).data?.[0]?.is_me).toBe(true)
+    expect((await orga.rpc('get_event_invitees', { p_slug: slug })).data?.[0]?.status).toBe('going')
   })
 })
 

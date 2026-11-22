@@ -57,6 +57,26 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"invitees": {
+                  Row: {
+                    "created_at": string,"display_name": string,"event_id": string,"id": string,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"display_name": string,"event_id": string,"id"?: string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"display_name"?: string,"event_id"?: string,"id"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "invitees_event_id_fkey"
+      columns: ["event_id"]
+isOneToOne: false
+      referencedRelation: "events"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"merge_tokens": {
                   Row: {
                     "anon_user_id": string,"expires_at": string,"token": string
@@ -111,7 +131,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "create_merge_token":
+            "add_invitees":
+{ Args: { "p_names": (string)[],"p_slug": string }; Returns: number
+                           },
+"create_merge_token":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
 "generate_slug":
@@ -130,6 +153,11 @@ isOneToOne: false
               "display_name": string,"is_me": boolean,"plus_ones": number,"status": Database["public"]['Enums']["rsvp_status"],"updated_at": string
             }[]
                            },
+"get_event_invitees":
+{ Args: { "p_slug": string }; Returns: {
+              "display_name": string,"id": string,"is_me": boolean,"status": Database["public"]['Enums']["rsvp_status"]
+            }[]
+                           },
 "is_event_organizer":
 { Args: { "p_event_id": string }; Returns: boolean
                            },
@@ -140,7 +168,7 @@ isOneToOne: false
 { Args: { "p_token": string }; Returns: number
                            },
 "rsvp":
-{ Args: { "p_display_name": string,"p_plus_ones"?: number,"p_slug": string,"p_status": Database["public"]['Enums']["rsvp_status"] }; Returns: undefined
+{ Args: { "p_display_name": string,"p_invitee_id"?: string,"p_plus_ones"?: number,"p_slug": string,"p_status": Database["public"]['Enums']["rsvp_status"] }; Returns: undefined
                            }
           }
           Enums: {

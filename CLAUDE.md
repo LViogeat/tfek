@@ -56,7 +56,7 @@ src/
   lib/format.ts                        dates en français
   views/                               HomePage, EventPage, EventFormPage, LoginPage, AccountPage
   theme/variables.css                  thème sombre global, polices, tokens du style billet
-  components/                          EventTicket (+ TfekStamp), RsvpBar (réponse fixée en bas, + Confetti), GuestList, EventListItem, RsvpBadge
+  components/                          EventTicket (+ TfekStamp), RsvpBar (réponse fixée en bas, « C'est toi ? », + Confetti), GuestList (+ « Pas encore répondu »), EventListItem, RsvpBadge
 tests/
   db.test.ts                           intégration sur la base locale (règles d'accès, fusion, slugs, aperçu)
   preview.test.ts                      unitaires de l'aperçu du lien et du lien partagé
@@ -68,10 +68,11 @@ Routes : `/` accueil · `/new` création · `/e/:slug` event · `/e/:slug/edit` 
 
 ## Modèle de données et sécurité
 
-Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris), `events`, `rsvps` (PK `event_id, user_id`), `announcements`, `merge_tokens`.
+Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris), `events`, `rsvps` (PK `event_id, user_id`), `invitees`, `announcements`, `merge_tokens`.
 
 - **Accès par lien** : `events` n'est pas lisible publiquement. La lecture publique passe par des RPC `security definer` qui prennent le slug : `get_event` (détails + compteurs + `my_rsvp` + `is_organizer`), `get_event_guests` (respecte `show_guest_list`, jamais de `user_id` exposé), `get_event_announcements`.
-- **Répondre** : uniquement via la RPC `rsvp(slug, status, display_name, plus_ones)`, qui exige une session (anonyme acceptée) et refuse les events annulés.
+- **Répondre** : uniquement via la RPC `rsvp(slug, status, display_name, plus_ones, invitee_id)`, qui exige une session (anonyme acceptée) et refuse les events annulés.
+- **Invités attendus** (`invitees`) : prénoms ajoutés par l'organisateur (`add_invitees`, sans doublon, insensible à la casse). En répondant, l'invité dit « c'est moi » (`invitee_id`, ou un prénom tapé identique) : `invitees.user_id` le retient, une personne = un prénom par évènement, un prénom pris ne peut plus l'être par un autre. `get_event_invitees` ne renvoie aux invités que les prénoms libres et le leur, sans réponse ; l'organisateur les reçoit tous avec leur réponse (`null` = pas encore répondu). Un prénom ajouté après coup est rattaché à celui qui a déjà répondu sous ce prénom, et la fusion invité → compte fait suivre le « c'est moi ».
 - **Créer un event** : policy `is_registered()` (session non anonyme). Modifier, supprimer ou publier une annonce : organisateur uniquement (`is_event_organizer`).
 - **Visibilité des réponses** : trois niveaux dans le formulaire (« Qui voit les réponses »), stockés dans `show_guest_list` et `show_counts` (contrainte : la liste implique le nombre). Sans `show_counts`, `get_event` renvoie `counts: null` aux invités. Le même réglage s'applique à l'aperçu du lien.
 - **Lecture directe autorisée** : l'organisateur voit ses events et leurs réponses ; un utilisateur voit ses réponses et les events auxquels il a répondu (pour « Invitations »). ⚠️ Un invité peut donc *lire* la ligne d'un event auquel il a répondu : toute requête « réservée à l'organisateur » doit filtrer sur `organizer_id` (voir `getEventForEdit`).
@@ -114,7 +115,7 @@ npm run db:start      # Supabase local (Docker)
 npm run dev           # http://localhost:5173
 ```
 
-- Comptes de test (mot de passe `password`) : `orga@test.fr` (Camille, organise `anniv-camille` et `rando-vercors`), `invite@test.fr` (Alex, a répondu à `anniv-camille`). Connexion en 1 clic sur `/login` en mode dev.
+- Comptes de test (mot de passe `password`) : `orga@test.fr` (Camille, organise `anniv-camille` et `rando-vercors`), `invite@test.fr` (Alex, a répondu à `anniv-camille`). Invités attendus d'`anniv-camille` : Alex (a répondu), Inès et Jordan. Connexion en 1 clic sur `/login` en mode dev.
 - E-mails : Mailpit http://127.0.0.1:54324 · Base : Studio http://127.0.0.1:54323.
 
 ### Dans une session Claude Code cloud
@@ -132,7 +133,7 @@ Le premier `supabase start` télécharge les images (quelques minutes). Si un `d
 
 ```bash
 npm run typecheck
-npm run db:reset && npm test        # 44 tests, base locale requise
+npm run db:reset && npm test        # 52 tests, base locale requise
 npm run db:reset && npm run e2e     # serveur dev lancé ; captures dans tests/e2e/shots/
 npm run build
 ```

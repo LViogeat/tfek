@@ -62,3 +62,17 @@ export function ticketTime(startsAt: string, endsAt?: string | null): string | n
   if (start.toDateString() !== end.toDateString()) return null
   return `${timeFmt.format(start)} – ${timeFmt.format(end)}`
 }
+
+/** Découpe « Alex, Inès et Sam » (virgules, retours à la ligne, « et ») en prénoms. */
+export function parseNames(text: string): string[] {
+  return text
+    .split(/[,;\n]|\s+et\s+/i)
+    .map((n) => n.trim())
+    .filter(Boolean)
+}
+
+/** « Alex », « Alex et Inès », « Alex, Inès et Sam ». */
+export function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}`
+}

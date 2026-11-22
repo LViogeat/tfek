@@ -52,13 +52,16 @@ async function emailCode(email) {
   const button = (p, text) => p.locator('ion-button', { hasText: text })
   const titleInput = 'input[placeholder^="Anniversaire"]'
 
-  // 1. Invité sans compte : répond avec son prénom
+  // 1. Invité sans compte : se reconnaît dans la liste de l'organisateur (« c'est moi »)
   const g = await newPage()
   await g.goto(`${BASE}/e/anniv-camille`)
   await g.getByText('Tu viens ?').waitFor()
   await g.screenshot({ path: `${OUT}/1-event-invite.png`, fullPage: true })
   await g.getByRole('button', { name: /Oui/ }).click()
-  await g.locator('ion-input input').first().fill('Jordan')
+  await g.getByText('C’est toi ?').waitFor()
+  check('invité : Alex, qui a déjà répondu, n’est pas proposé', (await g.locator('.name-chip', { hasText: 'Alex' }).count()) === 0)
+  await g.locator('.name-chip', { hasText: 'Jordan' }).click()
+  await g.screenshot({ path: `${OUT}/1b-cest-moi.png` })
   await g.getByRole('button', { name: /Envoyer ma réponse/ }).click()
   await g.getByText('C’est noté.', { exact: true }).waitFor()
   // La liste des invités se recharge juste après le message : on attend qu'elle contienne Jordan
@@ -122,6 +125,18 @@ async function emailCode(email) {
     .waitFor({ timeout: 5000 })
     .then(() => true, () => false)
   check('organisateur : réponses privées', hidden && (await visible(p, '.counts').count()) === 0)
+
+  // 3c. L'organisateur voit qui n'a pas encore répondu et ajoute des prénoms
+  await o.goto(`${BASE}/e/anniv-camille`)
+  const pendingTitle = visible(o, '.group-title').filter({ hasText: 'Pas encore répondu' })
+  await pendingTitle.waitFor({ timeout: 8000 })
+  check('organisateur : Inès n’a pas encore répondu', (await pendingTitle.innerText()).includes('· 1'))
+  await visible(o, 'input[placeholder^="Ajouter des invités"]').fill('Léo, Mia et Inès')
+  await visible(o, '.add-invitees ion-button').click()
+  await o.getByText('2 ajoutés, les autres étaient déjà là').waitFor({ timeout: 5000 })
+  check('organisateur : prénoms ajoutés sans doublon', (await pendingTitle.innerText()).includes('· 3'))
+  await sleep(300)
+  await o.screenshot({ path: `${OUT}/4c-pas-encore-repondu.png`, fullPage: true })
 
   // 4. Un invité inscrit ne peut pas ouvrir le formulaire d'édition
   const i = await newPage()

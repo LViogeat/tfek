@@ -26,7 +26,18 @@ export interface EventDetails {
   is_organizer: boolean
   /** `null` quand l'organisateur garde les réponses pour lui */
   counts: { going: number; maybe: number; declined: number } | null
-  my_rsvp: { status: RsvpStatus; display_name: string; plus_ones: number } | null
+  my_rsvp: { status: RsvpStatus; display_name: string; plus_ones: number; invitee_id: string | null } | null
+}
+
+/**
+ * Invité attendu (prénom ajouté par l'organisateur). Un invité ne reçoit que les prénoms libres et le
+ * sien ; l'organisateur les reçoit tous, avec leur réponse (`null` : pas encore répondu).
+ */
+export interface Invitee {
+  id: string
+  display_name: string
+  is_me: boolean
+  status: RsvpStatus | null
 }
 
 export interface Guest {
@@ -75,15 +86,36 @@ export async function getAnnouncements(slug: string): Promise<Announcement[]> {
   return check(await supabase.rpc('get_event_announcements', { p_slug: slug }))
 }
 
-export async function respond(slug: string, status: RsvpStatus, displayName: string, plusOnes = 0) {
+/** `inviteeId` : prénom de la liste choisi par l'invité (« c'est moi »). */
+export async function respond(
+  slug: string,
+  status: RsvpStatus,
+  displayName: string,
+  plusOnes = 0,
+  inviteeId: string | null = null,
+) {
   check(
     await supabase.rpc('rsvp', {
       p_slug: slug,
       p_status: status,
       p_display_name: displayName,
       p_plus_ones: plusOnes,
+      ...(inviteeId ? { p_invitee_id: inviteeId } : {}),
     }),
   )
+}
+
+export async function getInvitees(slug: string): Promise<Invitee[]> {
+  return check(await supabase.rpc('get_event_invitees', { p_slug: slug })) as Invitee[]
+}
+
+/** Renvoie le nombre de prénoms ajoutés (les doublons sont ignorés). */
+export async function addInvitees(slug: string, names: string[]): Promise<number> {
+  return check(await supabase.rpc('add_invitees', { p_slug: slug, p_names: names }))
+}
+
+export async function deleteInvitee(id: string) {
+  check(await supabase.from('invitees').delete().eq('id', id))
 }
 
 /**

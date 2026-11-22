@@ -168,6 +168,24 @@ create trigger rsvps_updated_at before update on public.rsvps
 alter table public.rsvps enable row level security;
 
 -- ---------------------------------------------------------------------------
+-- Invités attendus : prénoms ajoutés par l'organisateur.
+-- En répondant, l'invité dit « c'est moi » : l'organisateur voit qui n'a pas encore répondu.
+-- ---------------------------------------------------------------------------
+create table public.invitees (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.events (id) on delete cascade,
+  display_name text not null check (char_length(display_name) between 1 and 60),
+  -- Celui qui a dit « c'est moi » (au plus un prénom par personne et par évènement)
+  user_id uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (event_id, user_id)
+);
+
+create unique index invitees_event_name_idx on public.invitees (event_id, lower(display_name));
+
+alter table public.invitees enable row level security;
+
+-- ---------------------------------------------------------------------------
 -- Annonces de l'organisateur
 -- ---------------------------------------------------------------------------
 create table public.announcements (
@@ -219,6 +237,12 @@ create policy "rsvps: je supprime ma réponse" on public.rsvps
   for delete using (user_id = auth.uid());
 -- Les insertions / mises à jour de réponses passent par la fonction public.rsvp()
 
+create policy "invitees: l'organisateur voit ses invités" on public.invitees
+  for select using (public.is_event_organizer(event_id));
+create policy "invitees: l'organisateur retire un invité" on public.invitees
+  for delete using (public.is_event_organizer(event_id));
+-- Ajout via public.add_invitees(), « c'est moi » via public.rsvp()
+
 create policy "announcements: l'organisateur gère" on public.announcements
   for all using (public.is_event_organizer(event_id))
   with check (public.is_event_organizer(event_id) and author_id = auth.uid());
@@ -266,7 +290,10 @@ as $$
       select jsonb_build_object(
         'status', r.status,
         'display_name', r.display_name,
-        'plus_ones', r.plus_ones
+        'plus_ones', r.plus_ones,
+        'invitee_id', (
+          select i.id from public.invitees i where i.event_id = e.id and i.user_id = auth.uid()
+        )
       )
       from public.rsvps r
       where r.event_id = e.id and r.user_id = auth.uid()
@@ -293,6 +320,67 @@ as $$
   order by r.status, r.created_at;
 $$;
 
+-- Invités attendus. Les invités ne voient que les prénoms libres (pour dire « c'est moi ») et le leur ;
+-- l'organisateur les voit tous, avec leur réponse (null : pas encore répondu).
+create or replace function public.get_event_invitees(p_slug text)
+returns table (id uuid, display_name text, is_me boolean, status public.rsvp_status)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select i.id, i.display_name, coalesce(i.user_id = auth.uid(), false),
+         case when e.organizer_id = auth.uid() then r.status end
+  from public.events e
+  join public.invitees i on i.event_id = e.id
+  left join public.rsvps r on r.event_id = e.id and r.user_id = i.user_id
+  where e.slug = p_slug
+    and (e.organizer_id = auth.uid() or i.user_id is null or i.user_id = auth.uid())
+  order by lower(i.display_name);
+$$;
+
+-- L'organisateur ajoute des prénoms. Quelqu'un qui a déjà répondu sous ce prénom y est rattaché.
+create or replace function public.add_invitees(p_slug text, p_names text[])
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_event_id uuid;
+  v_count int;
+begin
+  select id into v_event_id from public.events where slug = p_slug and organizer_id = auth.uid();
+  if v_event_id is null then
+    raise exception 'Réservé à l''organisateur' using errcode = '42501';
+  end if;
+  if coalesce(array_length(p_names, 1), 0) > 200 then
+    raise exception 'Trop de prénoms d''un coup' using errcode = '22023';
+  end if;
+
+  with names as (
+    select distinct on (lower(n)) n
+    from (select left(btrim(x), 60) as n from unnest(p_names) as x) s
+    where n <> ''
+  ), ins as (
+    insert into public.invitees (event_id, display_name, user_id)
+    select v_event_id, names.n, (
+      select r.user_id from public.rsvps r
+      where r.event_id = v_event_id
+        and lower(r.display_name) = lower(names.n)
+        and not exists (select 1 from public.invitees i where i.event_id = v_event_id and i.user_id = r.user_id)
+      order by r.created_at
+      limit 1
+    )
+    from names
+    on conflict do nothing
+    returning 1
+  )
+  select count(*) into v_count from ins;
+  return v_count;
+end;
+$$;
+
 create or replace function public.get_event_announcements(p_slug text)
 returns table (id uuid, body text, created_at timestamptz)
 language sql
@@ -312,7 +400,9 @@ create or replace function public.rsvp(
   p_slug text,
   p_status public.rsvp_status,
   p_display_name text,
-  p_plus_ones int default 0
+  p_plus_ones int default 0,
+  -- Prénom de la liste choisi par l'invité (« c'est moi ») ; null : prénom tapé
+  p_invitee_id uuid default null
 )
 returns void
 language plpgsql
@@ -322,6 +412,8 @@ as $$
 declare
   v_event public.events;
   v_name text := btrim(p_display_name);
+  v_invitee_id uuid;
+  v_invitee_user uuid;
 begin
   if auth.uid() is null then
     raise exception 'Connexion requise' using errcode = '28000';
@@ -334,8 +426,37 @@ begin
   if v_event.cancelled_at is not null then
     raise exception 'Cet évènement est annulé' using errcode = 'P0001';
   end if;
+
+  if p_invitee_id is not null then
+    select id, display_name, user_id into v_invitee_id, v_name, v_invitee_user
+    from public.invitees
+    where id = p_invitee_id and event_id = v_event.id
+    for update;
+    if v_invitee_id is null then
+      raise exception 'Ce prénom n''est plus dans la liste' using errcode = 'P0002';
+    end if;
+    if v_invitee_user is not null and v_invitee_user <> auth.uid() then
+      raise exception 'Ce prénom a déjà répondu' using errcode = 'P0001';
+    end if;
+  elsif v_name is not null and v_name <> '' then
+    -- Un prénom tapé qui correspond à un invité libre de la liste vaut « c'est moi »
+    select id, display_name into v_invitee_id, v_name
+    from public.invitees
+    where event_id = v_event.id and lower(display_name) = lower(v_name)
+      and (user_id is null or user_id = auth.uid())
+    for update;
+    v_name := coalesce(v_name, btrim(p_display_name));
+  end if;
+
   if v_name is null or v_name = '' then
     raise exception 'Le prénom est requis' using errcode = '22023';
+  end if;
+
+  -- Une personne ne peut être qu'un seul prénom de la liste
+  update public.invitees set user_id = null
+  where event_id = v_event.id and user_id = auth.uid() and id is distinct from v_invitee_id;
+  if v_invitee_id is not null then
+    update public.invitees set user_id = auth.uid() where id = v_invitee_id;
   end if;
 
   insert into public.rsvps (event_id, user_id, status, display_name, plus_ones)
@@ -434,6 +555,14 @@ begin
 
   delete from public.rsvps where user_id = v_anon;
 
+  -- Les « c'est moi » suivent, sauf si le compte en avait déjà un pour le même évènement
+  update public.invitees i set user_id = auth.uid()
+  where i.user_id = v_anon
+    and not exists (
+      select 1 from public.invitees i2 where i2.event_id = i.event_id and i2.user_id = auth.uid()
+    );
+  update public.invitees set user_id = null where user_id = v_anon;
+
   update public.profiles p set display_name = (select display_name from public.profiles where id = v_anon)
   where p.id = auth.uid() and p.display_name is null;
 
@@ -446,7 +575,9 @@ $$;
 -- ---------------------------------------------------------------------------
 revoke execute on function public.create_merge_token() from public, anon;
 revoke execute on function public.merge_anonymous_user(text) from public, anon;
-revoke execute on function public.rsvp(text, public.rsvp_status, text, int) from public, anon;
+revoke execute on function public.rsvp(text, public.rsvp_status, text, int, uuid) from public, anon;
+revoke execute on function public.add_invitees(text, text[]) from public, anon;
 grant execute on function public.create_merge_token() to authenticated;
 grant execute on function public.merge_anonymous_user(text) to authenticated;
-grant execute on function public.rsvp(text, public.rsvp_status, text, int) to authenticated;
+grant execute on function public.rsvp(text, public.rsvp_status, text, int, uuid) to authenticated;
+grant execute on function public.add_invitees(text, text[]) to authenticated;
