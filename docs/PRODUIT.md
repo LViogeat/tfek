@@ -4,7 +4,7 @@ Ce document garde la trace du **pourquoi**. Le **comment** technique est dans [`
 
 ## Le problème
 
-Les événements Facebook étaient parfaits : une page par event, les infos, qui vient (Oui / Peut-être / Non), les annonces de l'organisateur. Mais plus personne n'est sur Facebook.
+Les évènements Facebook étaient parfaits : une page par event, les infos, qui vient (Oui / Peut-être / Non), les annonces de l'organisateur. Mais plus personne n'est sur Facebook.
 
 Aujourd'hui les events s'organisent dans un groupe WhatsApp ou Messenger :
 - les **infos importantes** (heure, lieu, changements, quoi ramener) sont **noyées** dans la conversation ;

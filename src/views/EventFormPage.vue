@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button :default-href="slug ? `/e/${slug}` : '/'" text="" />
         </ion-buttons>
-        <ion-title>{{ slug ? 'Modifier l’événement' : 'Nouvel événement' }}</ion-title>
+        <ion-title>{{ slug ? 'Modifier l’évènement' : 'Nouvel évènement' }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -86,7 +86,7 @@
             <div slot="content">
               <ion-list>
                 <ion-item>
-                  <ion-select v-model="form.visibility" label="Qui peut voir l’événement" label-placement="stacked" interface="action-sheet" cancel-text="Annuler">
+                  <ion-select v-model="form.visibility" label="Qui peut voir l’évènement" label-placement="stacked" interface="action-sheet" cancel-text="Annuler">
                     <ion-select-option value="link">Ceux qui ont le lien</ion-select-option>
                     <ion-select-option value="public" disabled>Tout le monde (bientôt)</ion-select-option>
                   </ion-select>
@@ -109,7 +109,7 @@
         <div class="ion-padding">
           <ion-button type="submit" expand="block" :disabled="saving || !canSubmit">
             <ion-spinner v-if="saving" slot="start" name="crescent" />
-            {{ slug ? 'Enregistrer' : 'Publier l’événement' }}
+            {{ slug ? 'Enregistrer' : 'Publier l’évènement' }}
           </ion-button>
           <ion-button
             v-if="slug && original && !original.cancelled_at"
@@ -118,7 +118,7 @@
             color="danger"
             @click="cancelEvent"
           >
-            Annuler l’événement
+            Annuler l’évènement
           </ion-button>
         </div>
       </form>
@@ -229,7 +229,7 @@ async function submit() {
     const input = toInput()
     if (props.slug && original.value) {
       await updateEvent(original.value.id, input)
-      await toast('Événement mis à jour')
+      await toast('Évènement mis à jour')
       router.back()
     } else if (!isRegistered.value) {
       saveDraft({ ...input, publishAfterLogin: true })
@@ -248,7 +248,7 @@ async function submit() {
 async function cancelEvent() {
   if (!original.value) return
   const alert = await alertController.create({
-    header: 'Annuler l’événement ?',
+    header: 'Annuler l’évènement ?',
     buttons: [
       { text: 'Non', role: 'cancel' },
       {
@@ -259,7 +259,7 @@ async function cancelEvent() {
             await updateEvent(original.value!.id, { cancelled_at: new Date().toISOString() })
             await router.replace(`/e/${props.slug}`)
           } catch (e) {
-            await toast(`L’événement n’a pas pu être annulé : ${(e as Error).message}`, 'danger')
+            await toast(`L’évènement n’a pas pu être annulé : ${(e as Error).message}`, 'danger')
           }
         },
       },
@@ -275,7 +275,7 @@ onIonViewWillEnter(async () => {
       ? await getEventForEdit(props.slug, currentUser.value.id).catch(() => null)
       : null
     if (!e) {
-      await toast('Événement introuvable ou tu n’en es pas l’organisateur', 'danger')
+      await toast('Évènement introuvable ou tu n’en es pas l’organisateur', 'danger')
       await router.replace('/')
       return
     }

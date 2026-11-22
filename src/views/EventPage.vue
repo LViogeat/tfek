@@ -26,14 +26,14 @@
       </div>
 
       <div v-else-if="!event" class="center ion-padding">
-        <h2 class="disp">Événement introuvable</h2>
+        <h2 class="disp">Évènement introuvable</h2>
         <ion-button router-link="/" fill="outline">Retour à l’accueil</ion-button>
       </div>
 
       <div v-else class="page-narrow">
         <!-- Juste après la création : on pousse l'organisateur à partager -->
         <div v-if="justCreated && event.is_organizer" class="created">
-          <p class="disp created-title">Ton événement est en ligne.</p>
+          <p class="disp created-title">Ton évènement est en ligne.</p>
           <ion-button expand="block" @click="shareInvitation">
             <ion-icon slot="start" :icon="shareOutline" />
             Inviter mes amis
@@ -121,7 +121,7 @@
         </div>
 
         <div class="footer muted">
-          <router-link to="/new">Crée ton événement avec tfek</router-link>
+          <router-link to="/new">Crée ton évènement avec tfek</router-link>
         </div>
       </div>
     </ion-content>

@@ -14,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'tfek',
         short_name: 'tfek',
-        description: 'Organise tes événements et sache qui vient.',
+        description: 'Organise tes évènements et sache qui vient.',
         lang: 'fr',
         theme_color: '#1b1e21',
         background_color: '#1b1e21',
