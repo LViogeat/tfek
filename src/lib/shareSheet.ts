@@ -15,7 +15,7 @@ export async function openShareSheet(opts: { header: string; title: string; text
       { text: 'WhatsApp', handler: () => void window.open(whatsappUrl(full), '_blank') },
       { text: 'SMS', handler: () => void (window.location.href = smsUrl(full)) },
       ...(native
-        ? [{ text: 'Autre application…', handler: () => void nativeShare(opts.title, opts.text, opts.url).catch(() => {}) }]
+        ? [{ text: 'Autre application…', handler: () => void nativeShare(opts.title, full).catch(() => {}) }]
         : []),
       {
         text: 'Copier le message',

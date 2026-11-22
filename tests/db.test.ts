@@ -140,6 +140,31 @@ describe('organisation', () => {
   })
 })
 
+describe('publication d’un brouillon', () => {
+  it('un même brouillon n’est publié qu’une fois (deux onglets)', async () => {
+    const orga = await user('orga@test.fr')
+    const draftId = crypto.randomUUID()
+    const row = { title: 'Brouillon partagé', starts_at: new Date(Date.now() + 86400e3).toISOString(), draft_id: draftId }
+    expect((await orga.from('events').insert(row)).error).toBeNull()
+    const second = await orga.from('events').insert(row)
+    expect(second.error?.code).toBe('23505')
+    const { data } = await orga.from('events').select('id').eq('draft_id', draftId)
+    expect(data).toHaveLength(1)
+  })
+
+  it('message d’erreur en français pour un évènement annulé', async () => {
+    const orga = await user('orga@test.fr')
+    const { data: ev } = await orga
+      .from('events')
+      .insert({ title: 'Annulé', starts_at: new Date(Date.now() + 86400e3).toISOString(), cancelled_at: new Date().toISOString() })
+      .select()
+      .single()
+    const g = await guest()
+    const { error } = await g.rpc('rsvp', { p_slug: ev!.slug, p_status: 'going', p_display_name: 'Léa' })
+    expect(error?.message).toBe('Cet évènement est annulé')
+  })
+})
+
 describe('visibilité des réponses', () => {
   it('l’organisateur peut garder les réponses pour lui', async () => {
     const orga = await user('orga@test.fr')
@@ -209,6 +234,25 @@ describe('fusion invité → compte', () => {
 
     // Le jeton n'est utilisable qu'une fois
     expect((await c.rpc('merge_anonymous_user', { p_token: token! })).data).toBe(0)
+  })
+
+  it('la réponse la plus récente gagne quand le compte avait déjà répondu', async () => {
+    const orga = await user('orga@test.fr')
+    const { data: ev } = await orga
+      .from('events')
+      .insert({ title: 'Ciné', starts_at: new Date(Date.now() + 86400e3).toISOString() })
+      .select()
+      .single()
+    // Le compte a dit oui la semaine dernière…
+    const account = await user('invite@test.fr')
+    await account.rpc('rsvp', { p_slug: ev!.slug, p_status: 'going', p_display_name: 'Alex' })
+    // …puis, sur un autre téléphone, il répond non en invité et se connecte
+    const c = await guest()
+    await c.rpc('rsvp', { p_slug: ev!.slug, p_status: 'declined', p_display_name: 'Alex' })
+    const { data: token } = await c.rpc('create_merge_token')
+    await c.auth.signInWithPassword({ email: 'invite@test.fr', password: 'password' })
+    expect((await c.rpc('merge_anonymous_user', { p_token: token! })).data).toBe(1)
+    expect(((await c.rpc('get_event', { p_slug: ev!.slug })).data as any).my_rsvp.status).toBe('declined')
   })
 
   it('un compte inscrit ne peut pas créer de jeton', async () => {

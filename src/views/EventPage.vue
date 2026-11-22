@@ -180,7 +180,7 @@ const nudgeDismissed = ref(false)
 const justCreated = computed(() => route.query.created === '1')
 const url = computed(() => eventUrl(props.slug))
 // Lien des messages partagés : change avec les réponses pour que WhatsApp refasse l'aperçu
-const sharedUrl = computed(() => (event.value ? shareUrl(event.value) : url.value))
+const sharedUrl = computed(() => (event.value ? shareUrl(event.value, guests.value) : url.value))
 const showAccountNudge = computed(() => justAnswered.value && !isRegistered.value && !nudgeDismissed.value)
 
 // Plusieurs déclencheurs (entrée sur la page, réponse, changement de session, fusion) :

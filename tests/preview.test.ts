@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import {
-  goingNames, imageVersion, isValidSlug, longDate, ogImageTree, previewDescription, previewHtml,
+  goingNames, imageVersion, isValidSlug, memoizeSuccess, longDate, ogImageTree, previewDescription, previewHtml,
   responsesSentence, shortPlace, ticketDate, type PreviewEvent, type PreviewGuest,
 } from '../api/_lib/preview'
 import { shareUrl } from '../src/lib/share'
@@ -102,12 +102,42 @@ describe('aperçu du lien', () => {
 describe('lien partagé', () => {
   // eventUrl() prend l'origine de la page
   beforeAll(() => vi.stubGlobal('window', { location: { origin: 'https://tfek.app' } }))
-  const base = { slug: 'abc', show_counts: true, cancelled_at: null }
-  it('ajoute les réponses au lien pour rafraîchir l’aperçu', () => {
-    expect(shareUrl({ ...base, counts: { going: 12, maybe: 3 } })).toMatch(/\/e\/abc\?r=12-3$/)
+  const withSlug = { ...EVENT, slug: 'abc' }
+
+  it('porte l’empreinte de l’image quand les réponses sont visibles', () => {
+    const url = shareUrl(withSlug, GUESTS)
+    expect(url).toBe(`https://tfek.app/e/abc?r=${imageVersion(withSlug, names)}`)
   })
+
+  it('change quand un invité en remplace un autre, même avec les mêmes chiffres', () => {
+    const swapped: PreviewGuest[] = [{ display_name: 'Paul', status: 'going' }, ...GUESTS.slice(1)]
+    expect(shareUrl(withSlug, swapped)).not.toBe(shareUrl(withSlug, GUESTS))
+  })
+
+  it('suit ce que voit la messagerie : sans liste publique, les prénoms ne comptent pas', () => {
+    const privateList = { ...withSlug, show_guest_list: false }
+    const swapped: PreviewGuest[] = [{ display_name: 'Paul', status: 'going' }, ...GUESTS.slice(1)]
+    expect(shareUrl(privateList, swapped)).toBe(shareUrl(privateList, GUESTS))
+  })
+
   it('lien simple sans réponses visibles', () => {
-    expect(shareUrl({ ...base, counts: { going: 0, maybe: 2 } })).toMatch(/\/e\/abc$/)
-    expect(shareUrl({ ...base, show_counts: false, counts: { going: 4, maybe: 0 } })).toMatch(/\/e\/abc$/)
+    expect(shareUrl({ ...withSlug, counts: { going: 0, maybe: 2, declined: 0 } })).toBe('https://tfek.app/e/abc')
+    // L'organisatrice voit les chiffres, mais pas la messagerie
+    expect(shareUrl({ ...withSlug, show_guest_list: false, show_counts: false }, GUESTS)).toBe('https://tfek.app/e/abc')
+  })
+})
+
+describe('chargement des polices', () => {
+  it('garde le succès, réessaie après un échec', async () => {
+    let calls = 0
+    const load = memoizeSuccess(async () => {
+      calls++
+      if (calls === 1) throw new Error('réseau')
+      return 'ok'
+    })
+    await expect(load()).rejects.toThrow('réseau')
+    expect(await load()).toBe('ok')
+    expect(await load()).toBe('ok')
+    expect(calls).toBe(2)
   })
 })

@@ -1,16 +1,18 @@
 // Image d'aperçu d'un event (billet 1200 × 630), générée à la volée.
 import { ImageResponse } from '@vercel/og'
-import { isValidSlug, loadPreview, renderOgImage, supabaseEnv } from './_lib/preview'
+import { isValidSlug, loadPreview, memoizeSuccess, renderOgImage, supabaseEnv } from './_lib/preview'
 
 export const config = { runtime: 'edge' }
 
-const fonts = Promise.all(
-  ([600, 700, 800] as const).map(async (weight) => ({
-    name: 'JetBrains Mono',
-    weight,
-    style: 'normal' as const,
-    data: await fetch(new URL(`./_fonts/jetbrains-mono-${weight}.woff`, import.meta.url)).then((r) => r.arrayBuffer()),
-  })),
+// Polices chargées une fois par instance ; un échec n'est pas gardé en cache (voir memoizeSuccess)
+const loadFonts = memoizeSuccess(() =>
+  Promise.all(
+    ([600, 700, 800] as const).map(async (weight) => {
+      const res = await fetch(new URL(`./_fonts/jetbrains-mono-${weight}.woff`, import.meta.url))
+      if (!res.ok) throw new Error(`Police ${weight} : ${res.status}`)
+      return { name: 'JetBrains Mono', weight, style: 'normal' as const, data: await res.arrayBuffer() }
+    }),
+  ),
 )
 
 export default async function handler(req: Request): Promise<Response> {
@@ -22,7 +24,7 @@ export default async function handler(req: Request): Promise<Response> {
     return await renderOgImage(ImageResponse, {
       event,
       guests,
-      fonts: await fonts,
+      fonts: await loadFonts(),
       // L'URL contient une empreinte du contenu (?v=) : on peut garder l'image longtemps
       headers: { 'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800' },
     })

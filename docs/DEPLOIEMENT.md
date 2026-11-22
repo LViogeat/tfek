@@ -102,5 +102,5 @@ Ouvrir l'adresse Vercel. « Ajouter à l'écran d'accueil » l'installe comme un
   Pour ouvrir à tous : brancher un SMTP gratuit (Resend ou Brevo) dans **Authentication → Emails → SMTP**.
 - **Aperçu du lien** : les dates de l'aperçu sont à l'heure de Paris (les events n'ont pas de fuseau).
   WhatsApp garde un aperçu en cache par adresse : les messages partagés depuis l'app ajoutent
-  `?r=<oui>-<peut-être>` au lien pour que les rappels montrent les réponses à jour.
+  `?r=<empreinte de l'image>` au lien pour que les rappels montrent les réponses à jour.
 - **Connexion Google** : désactivée (`VITE_ENABLE_GOOGLE=false`), à configurer plus tard si besoin.

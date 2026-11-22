@@ -216,14 +216,18 @@ async function toast(message: string, color = 'dark') {
   await t.present()
 }
 
-async function publish(input: EventInput) {
-  const created = await createEvent(input)
+async function publish(input: EventInput, draftId?: string) {
+  const created = await createEvent(input, draftId)
   clearDraft()
   await router.replace({ path: `/e/${created.slug}`, query: { created: '1' } })
 }
 
 async function submit() {
   if (!canSubmit.value || saving.value) return
+  if (endsAt.value && new Date(endsAt.value) < new Date(startsAt.value)) {
+    await toast('La fin doit être après le début', 'danger')
+    return
+  }
   saving.value = true
   try {
     const input = toInput()
@@ -232,7 +236,7 @@ async function submit() {
       await toast('Évènement mis à jour')
       router.back()
     } else if (!isRegistered.value) {
-      saveDraft({ ...input, publishAfterLogin: true })
+      saveDraft({ ...input, publishAfterLogin: true, draftId: crypto.randomUUID() })
       // Le retour de connexion passe par /new?publish=1 : seul ce retour publie le brouillon
       await router.push({ path: '/login', query: { redirect: '/new?publish=1', reason: 'publish' } })
     } else {
@@ -297,7 +301,7 @@ onIonViewWillEnter(async () => {
   saveDraft({ ...draft, publishAfterLogin: false })
   saving.value = true
   try {
-    await publish(toInput())
+    await publish(toInput(), draft.draftId)
   } catch (e) {
     await toast((e as Error).message, 'danger')
   } finally {

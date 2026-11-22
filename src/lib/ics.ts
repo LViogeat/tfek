@@ -19,7 +19,7 @@ export function escapeText(text: string): string {
   return text
     .replace(/\r\n?/g, '\n')
     .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\;')
+    .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
     .replace(/\n/g, '\\n')
 }

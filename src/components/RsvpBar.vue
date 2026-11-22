@@ -62,7 +62,6 @@
             <ion-spinner v-if="saving" slot="start" name="crescent" />
             Envoyer ma réponse
           </ion-button>
-          <p v-if="!isRegistered" class="muted small center">Pas besoin de compte.</p>
         </div>
       </template>
     </div>
@@ -74,7 +73,7 @@ import { ref, watch } from 'vue'
 import { IonButton, IonItem, IonInput, IonLabel, IonIcon, IonSpinner, toastController } from '@ionic/vue'
 import { addOutline, removeOutline } from 'ionicons/icons'
 import Confetti from './Confetti.vue'
-import { currentUser, ensureGuestSession, isRegistered } from '@/lib/auth'
+import { currentUser, ensureGuestSession } from '@/lib/auth'
 import { getMyDisplayName, respond, type EventDetails, type RsvpStatus } from '@/lib/events'
 
 const props = defineProps<{

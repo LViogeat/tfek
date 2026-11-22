@@ -4,7 +4,7 @@ import { buildIcs, escapeText, foldLine } from '../src/lib/ics'
 describe('ics', () => {
   it('échappe ; , \\ et les retours à la ligne (CRLF compris)', () => {
     expect(escapeText('Apéro; chips, bières\\ok\r\nligne 2\rligne 3')).toBe(
-      'Apéro\; chips\\, bières\\\\ok\\nligne 2\\nligne 3',
+      'Apéro\\; chips\\, bières\\\\ok\\nligne 2\\nligne 3',
     )
   })
 
@@ -27,7 +27,7 @@ describe('ics', () => {
       starts_at: '2026-12-01T19:00:00Z',
       url: 'https://tfek.app/e/abc',
     })
-    expect(ics).toContain('SUMMARY:Soirée\; jeux')
+    expect(ics).toContain('SUMMARY:Soirée\\; jeux')
     expect(ics.replace(/\r\n/g, '')).not.toMatch(/\r/)
     expect(ics.endsWith('\r\n')).toBe(true)
   })

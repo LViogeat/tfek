@@ -149,6 +149,30 @@ async function emailCode(email) {
   check('brouillon : pas publié automatiquement', (await d.getByText('Brouillon abandonné').count()) === 0)
 
   check('aucune erreur JavaScript', errors.length === 0, errors.join(' | '))
+
+  // 6. Retour de connexion dans deux onglets en même temps : un seul évènement publié
+  //    (après la vérification des erreurs : la seconde insertion renvoie volontairement un 409)
+  const ctx2 = await browser.newContext({ ...devices['iPhone 13'] })
+  const t1 = await ctx2.newPage()
+  await t1.goto(`${BASE}/login`)
+  await button(t1, 'orga@test.fr').click()
+  await t1.waitForURL(`${BASE}/`)
+  const title = `Double onglet ${Date.now()}`
+  await t1.evaluate((title) => {
+    const starts = new Date(Date.now() + 7 * 86400e3).toISOString()
+    localStorage.setItem('tfek.draftEvent', JSON.stringify({
+      title, description: null, starts_at: starts, ends_at: null, location: null, visibility: 'link',
+      show_guest_list: true, show_counts: true, allow_plus_ones: true, theme: 'noir',
+      publishAfterLogin: true, draftId: crypto.randomUUID(),
+    }))
+  }, title)
+  const t2 = await ctx2.newPage()
+  await Promise.all([t1.goto(`${BASE}/new?publish=1`), t2.goto(`${BASE}/new?publish=1`)])
+  await Promise.all([t1.waitForURL(/\/e\/\w+\?created=1/), t2.waitForURL(/\/e\/\w+\?created=1/)])
+  await t1.goto(`${BASE}/`)
+  await sleep(1500)
+  const copies = await t1.getByText(title).count()
+  check('brouillon : publié une seule fois depuis deux onglets', copies === 1 && new URL(t1.url()).pathname === '/', `${copies} exemplaire(s)`)
   await browser.close()
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est vert. Captures : tests/e2e/shots/')
   process.exit(failures ? 1 : 0)
