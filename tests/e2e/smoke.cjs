@@ -103,6 +103,26 @@ async function emailCode(email) {
   await sleep(400)
   await o.screenshot({ path: `${OUT}/4-partage-annonce.png` })
 
+  // 3b. L'organisateur garde les réponses pour lui : un invité ne voit ni le nombre ni la liste
+  const slug = new URL(o.url()).pathname.split('/')[2]
+  await o.goto(`${BASE}/e/${slug}/edit`)
+  await visible(o, titleInput).waitFor()
+  await visible(o, 'ion-accordion ion-item').filter({ hasText: 'Options de confidentialité' }).click()
+  await visible(o, 'ion-select.responses-select').click()
+  await o.locator('ion-action-sheet button', { hasText: 'Toi seul' }).click()
+  await sleep(300)
+  await o.screenshot({ path: `${OUT}/4b-qui-voit-les-reponses.png`, fullPage: true })
+  await button(o, 'Enregistrer').click()
+  await o.getByText('Event mis à jour').waitFor({ timeout: 8000 })
+  const p = await newPage()
+  await p.goto(`${BASE}/e/${slug}`)
+  await p.getByText('Tu viens ?').waitFor()
+  const hidden = await p
+    .getByText('L’organisateur a choisi de garder les réponses privées.')
+    .waitFor({ timeout: 5000 })
+    .then(() => true, () => false)
+  check('organisateur : réponses privées', hidden && (await visible(p, '.counts').count()) === 0)
+
   // 4. Un invité inscrit ne peut pas ouvrir le formulaire d'édition
   const i = await newPage()
   await i.goto(`${BASE}/login`)

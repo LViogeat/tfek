@@ -125,11 +125,15 @@ create table public.events (
   -- Options de confidentialité (paramétrables, défauts = le plus simple)
   visibility public.event_visibility not null default 'link',
   show_guest_list boolean not null default true,
+  -- Nombre de réponses visible par les invités (page et aperçu du lien).
+  -- La liste nominative implique le nombre : trois niveaux, tout / nombre seul / organisateur seul.
+  show_counts boolean not null default true,
   allow_plus_ones boolean not null default true,
   cancelled_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check (ends_at is null or ends_at >= starts_at)
+  check (ends_at is null or ends_at >= starts_at),
+  check (show_counts or not show_guest_list)
 );
 
 create index events_organizer_idx on public.events (organizer_id, starts_at desc);
@@ -240,19 +244,21 @@ as $$
     'theme', e.theme,
     'visibility', e.visibility,
     'show_guest_list', e.show_guest_list,
+    'show_counts', e.show_counts,
     'allow_plus_ones', e.allow_plus_ones,
     'cancelled_at', e.cancelled_at,
     'created_at', e.created_at,
     'organizer_name', coalesce(p.display_name, 'Organisateur'),
     'is_organizer', coalesce(e.organizer_id = auth.uid(), false),
-    'counts', (
+    -- null si l'organisateur garde les réponses pour lui
+    'counts', case when e.show_counts or e.organizer_id = auth.uid() then (
       select jsonb_build_object(
         'going', coalesce(sum(1 + r.plus_ones) filter (where r.status = 'going'), 0),
         'maybe', coalesce(sum(1 + r.plus_ones) filter (where r.status = 'maybe'), 0),
         'declined', count(*) filter (where r.status = 'declined')
       )
       from public.rsvps r where r.event_id = e.id
-    ),
+    ) end,
     'my_rsvp', (
       select jsonb_build_object(
         'status', r.status,

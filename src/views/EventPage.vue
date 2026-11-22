@@ -102,17 +102,18 @@
         </template>
 
         <h2 class="section-title">Qui vient</h2>
-        <p class="counts mono">
+        <p v-if="event.counts" class="counts mono">
           <strong>{{ event.counts.going }} oui</strong>
           <span v-if="event.counts.maybe" class="muted"> · {{ event.counts.maybe }} peut-être</span>
         </p>
         <template v-if="event.show_guest_list || event.is_organizer">
           <p v-if="event.is_organizer && !event.show_guest_list" class="muted small pad">
-            Liste visible par toi uniquement.
+            {{ event.show_counts ? 'Les invités voient le nombre, toi seul vois la liste.' : 'Réponses visibles par toi uniquement.' }}
           </p>
           <GuestList :guests="guests" />
         </template>
-        <p v-else class="muted pad">L’organisateur a choisi de garder la liste des invités privée.</p>
+        <p v-else-if="event.counts" class="muted pad">L’organisateur a choisi de garder la liste des invités privée.</p>
+        <p v-else class="muted pad">L’organisateur a choisi de garder les réponses privées.</p>
 
         <div v-if="event.is_organizer && !event.cancelled_at" class="ion-padding">
           <ion-button expand="block" fill="outline" color="dark" @click="shareReminder">
@@ -162,7 +163,7 @@ import {
 } from '@/lib/events'
 import { formatRelative } from '@/lib/format'
 import { themeStyle } from '@/lib/themes'
-import { announcementText, eventUrl, invitationText, reminderText } from '@/lib/share'
+import { announcementText, eventUrl, invitationText, reminderText, shareUrl } from '@/lib/share'
 import { openShareSheet } from '@/lib/shareSheet'
 import { downloadIcs } from '@/lib/ics'
 
@@ -180,6 +181,8 @@ const nudgeDismissed = ref(false)
 
 const justCreated = computed(() => route.query.created === '1')
 const url = computed(() => eventUrl(props.slug))
+// Lien des messages partagés : change avec les réponses pour que WhatsApp refasse l'aperçu
+const sharedUrl = computed(() => (event.value ? shareUrl(event.value) : url.value))
 const showAccountNudge = computed(() => justAnswered.value && !isRegistered.value && !nudgeDismissed.value)
 
 // Plusieurs déclencheurs (entrée sur la page, réponse, changement de session, fusion) :
@@ -229,8 +232,8 @@ function shareInvitation() {
   void openShareSheet({
     header: 'Inviter des amis',
     title: event.value.title,
-    text: invitationText(event.value.title, url.value),
-    url: url.value,
+    text: invitationText(event.value.title, sharedUrl.value),
+    url: sharedUrl.value,
   })
 }
 
@@ -239,8 +242,8 @@ function shareAnnouncement(body: string) {
   void openShareSheet({
     header: 'Prévenir les invités',
     title: event.value.title,
-    text: announcementText(event.value.title, body, url.value),
-    url: url.value,
+    text: announcementText(event.value.title, body, sharedUrl.value),
+    url: sharedUrl.value,
   })
 }
 
@@ -249,8 +252,8 @@ function shareReminder() {
   void openShareSheet({
     header: 'Relancer les invités',
     title: event.value.title,
-    text: reminderText(event.value.title, url.value),
-    url: url.value,
+    text: reminderText(event.value.title, sharedUrl.value),
+    url: sharedUrl.value,
   })
 }
 

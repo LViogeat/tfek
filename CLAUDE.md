@@ -22,12 +22,17 @@ App d'events « comme Facebook avant », partagée par un lien dans WhatsApp/Mes
 ## Stack
 
 - Front : **Ionic 8 + Vue 3 (Composition API, `<script setup>`) + TypeScript**, Vite 6, PWA (`vite-plugin-pwa`), **Capacitor 7** (`capacitor.config.ts`, pas encore de projets `ios/`/`android/`).
-- Back : **Supabase** (Postgres + Auth + RLS). Pas de serveur applicatif.
+- Back : **Supabase** (Postgres + Auth + RLS). Pas de serveur applicatif, sauf deux fonctions Vercel pour l’aperçu du lien (`api/`).
 - Le projet a été monté à la main (pas via `ionic start`, bloqué par le réseau) : c'est normal qu'il n'y ait pas `ionic.config.json`.
 
 ## Carte du code
 
 ```
+api/                                   fonctions Vercel (edge) de l'aperçu du lien, routées par vercel.json
+  event-preview.ts                     balises Open Graph de /e/:slug, servies aux seuls robots des messageries
+  og.ts                                image du billet 1200 × 630 (/og/:slug?v=empreinte), via @vercel/og
+  _lib/preview.ts                      logique pure : textes, empreinte, arbre d'éléments Satori, lecture REST
+  _fonts/                              JetBrains Mono en .woff (Satori ne lit pas le woff2)
 supabase/
   migrations/20261121000000_init.sql   TOUT le schéma : tables, RLS, fonctions RPC, droits
   seed.sql                             comptes + events de test (local uniquement)
@@ -49,7 +54,8 @@ src/
   theme/variables.css                  thème sombre global, polices, tokens du style billet
   components/                          EventTicket (+ TfekStamp), RsvpBar (réponse fixée en bas, + Confetti), GuestList, EventListItem, RsvpBadge
 tests/
-  db.test.ts                           intégration sur la base locale (règles d'accès, fusion, slugs)
+  db.test.ts                           intégration sur la base locale (règles d'accès, fusion, slugs, aperçu)
+  preview.test.ts                      unitaires de l'aperçu du lien et du lien partagé
   ics.test.ts / format.test.ts         unitaires
   e2e/smoke.cjs                        parcours complets dans Chromium (iPhone simulé)
 ```
@@ -63,6 +69,7 @@ Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris
 - **Accès par lien** : `events` n'est pas lisible publiquement. La lecture publique passe par des RPC `security definer` qui prennent le slug : `get_event` (détails + compteurs + `my_rsvp` + `is_organizer`), `get_event_guests` (respecte `show_guest_list`, jamais de `user_id` exposé), `get_event_announcements`.
 - **Répondre** : uniquement via la RPC `rsvp(slug, status, display_name, plus_ones)`, qui exige une session (anonyme acceptée) et refuse les events annulés.
 - **Créer un event** : policy `is_registered()` (session non anonyme). Modifier, supprimer ou publier une annonce : organisateur uniquement (`is_event_organizer`).
+- **Visibilité des réponses** : trois niveaux dans le formulaire (« Qui voit les réponses »), stockés dans `show_guest_list` et `show_counts` (contrainte : la liste implique le nombre). Sans `show_counts`, `get_event` renvoie `counts: null` aux invités. Le même réglage s'applique à l'aperçu du lien.
 - **Lecture directe autorisée** : l'organisateur voit ses events et leurs réponses ; un utilisateur voit ses réponses et les events auxquels il a répondu (pour « Invitations »). ⚠️ Un invité peut donc *lire* la ligne d'un event auquel il a répondu : toute requête « réservée à l'organisateur » doit filtrer sur `organizer_id` (voir `getEventForEdit`).
 - **Slugs** : `generate_slug()` sur 10 caractères, alphabet sans ambiguïté, tirage uniforme (rejet des octets biaisés).
 
@@ -72,6 +79,15 @@ Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris
 2. Avant toute connexion (`sendEmailCode`, `signInWithPassword`, `signInWithGoogle`), `prepareGuestMerge()` crée un jeton de fusion s'il est anonyme (localStorage `tfek.mergeToken`).
 3. Au `SIGNED_IN` d'un vrai compte, `mergePendingGuest()` appelle `merge_anonymous_user(token)`, puis incrémente `mergedVersion` : les pages qui le surveillent rechargent.
 4. Création d'event sans compte : brouillon enregistré, puis `/login?redirect=/new?publish=1`. **Seul ce retour avec `publish=1` publie automatiquement**. Un brouillon abandonné ne fait que pré-remplir le formulaire.
+
+## Aperçu du lien (Open Graph)
+
+- Les robots (WhatsApp, facebookexternalhit, Twitterbot, TelegramBot…) n'exécutent pas le JS. `vercel.json` les reconnaît à leur user-agent et réécrit `/e/:slug` vers `/api/event-preview`. Les humains reçoivent l'app normale.
+- L'URL de l'image contient une empreinte (`imageVersion`) : elle change quand le titre, la date, le thème ou les réponses changent. Les liens partagés ajoutent `?r=oui-peutêtre` (`shareUrl`) pour contourner le cache de WhatsApp par adresse.
+- Les réponses ne s'affichent qu'à partir d'un « oui » (jamais « 0 viennent ») ; les prénoms seulement si la liste est publique.
+- **Satori** (moteur de @vercel/og) : tout `div` à plusieurs enfants doit être en `display: flex` (le helper `h()` le fait), un enfant unique se passe sans tableau, et des lettres tournées loin de l'origine du canevas sont mal placées : le tampon est donc rendu dans sa propre image puis incrusté (`stampTree` + `renderOgImage`).
+- `@vercel/og` est épinglé en **0.11.1** : la 1.0.x publiée référence un `hb.wasm` absent du paquet.
+- En local, `vercel dev` n'est pas utilisé : la logique est testée par `tests/preview.test.ts` et `db.test.ts`. Pour voir l'image, rendre `renderOgImage` avec la version Node de @vercel/og (il faut définir `globalThis.require` et `__dirname` avant de l'importer en ESM).
 
 ## Pièges connus
 
@@ -111,7 +127,7 @@ Le premier `supabase start` télécharge les images (quelques minutes). Si un `d
 
 ```bash
 npm run typecheck
-npm run db:reset && npm test        # 20 tests, base locale requise
+npm run db:reset && npm test        # 36 tests, base locale requise
 npm run db:reset && npm run e2e     # serveur dev lancé ; captures dans tests/e2e/shots/
 npm run build
 ```
@@ -122,5 +138,6 @@ npm run build
 
 MVP v0.1 fonctionnel en local, design « billet chic » terminé et fusionné dans `main`, **non déployé**.
 
+- Aperçu riche du lien et réglage « Qui voit les réponses » codés (fonctions Vercel dans `api/`), à vérifier sur téléphone après la mise en ligne.
 - **Prochaine étape : mise en ligne de test** pour essayer l'app sur téléphone. Tout est préparé dans [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md) (deux options : Claude fait tout par API avec des jetons, ou pas-à-pas manuel ; `vercel.json` déjà en place). Une première tentative a échoué sur un mauvais jeton Supabase, voir le document.
-- Ensuite : aperçu riche du lien WhatsApp (Open Graph côté serveur). Détail et priorités dans [`docs/PRODUIT.md`](docs/PRODUIT.md#feuille-de-route).
+- Ensuite : voir les priorités dans [`docs/PRODUIT.md`](docs/PRODUIT.md#feuille-de-route).

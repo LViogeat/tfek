@@ -92,11 +92,15 @@
                   </ion-select>
                 </ion-item>
                 <ion-item>
-                  <ion-toggle v-model="form.show_guest_list">
-                    Liste des invités visible par tous
-                    <p class="muted toggle-help">Sinon, toi seul vois qui a répondu</p>
-                  </ion-toggle>
+                  <ion-select v-model="responsesVisibility" class="responses-select" label="Qui voit les réponses" label-placement="stacked" interface="action-sheet">
+                    <ion-select-option value="all">Tous : nombre et prénoms</ion-select-option>
+                    <ion-select-option value="count">Tous : le nombre seulement</ion-select-option>
+                    <ion-select-option value="me">Toi seul</ion-select-option>
+                  </ion-select>
                 </ion-item>
+                <p class="muted toggle-help responses-help ion-padding-horizontal">
+                  C’est aussi ce qui s’affiche dans l’aperçu du lien sur WhatsApp et Messenger.
+                </p>
                 <ion-item lines="none">
                   <ion-toggle v-model="form.allow_plus_ones">Autoriser les accompagnants (+1)</ion-toggle>
                 </ion-item>
@@ -160,8 +164,19 @@ const form = reactive<Omit<EventInput, 'starts_at' | 'ends_at'>>({
   location: '',
   visibility: 'link',
   show_guest_list: true,
+  show_counts: true,
   allow_plus_ones: true,
   theme: DEFAULT_THEME,
+})
+
+// Trois niveaux pour l'organisateur, stockés dans deux colonnes (la liste implique le nombre)
+type ResponsesVisibility = 'all' | 'count' | 'me'
+const responsesVisibility = computed<ResponsesVisibility>({
+  get: () => (form.show_guest_list ? 'all' : form.show_counts ? 'count' : 'me'),
+  set: (v) => {
+    form.show_guest_list = v === 'all'
+    form.show_counts = v !== 'me'
+  },
 })
 const startsAt = ref(defaultStart())
 const endsAt = ref('')
@@ -187,12 +202,14 @@ function toInput(): EventInput {
   }
 }
 
-function fill(e: Omit<EventInput, 'theme'> & { theme?: string | null }) {
+function fill(e: Omit<EventInput, 'theme' | 'show_counts'> & { theme?: string | null; show_counts?: boolean }) {
   form.title = e.title
   form.description = e.description ?? ''
   form.location = e.location ?? ''
   form.visibility = e.visibility
   form.show_guest_list = e.show_guest_list
+  // Les brouillons enregistrés avant l'ajout du réglage n'ont pas show_counts
+  form.show_counts = (e.show_counts ?? true) || e.show_guest_list
   form.allow_plus_ones = e.allow_plus_ones
   form.theme = getTheme(e.theme).id
   startsAt.value = toLocalInput(e.starts_at)
@@ -360,5 +377,8 @@ onIonViewWillEnter(async () => {
 .toggle-help {
   font-size: 0.8rem;
   margin: 2px 0 0;
+}
+.responses-help {
+  margin: 6px 0 10px;
 }
 </style>

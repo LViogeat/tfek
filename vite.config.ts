@@ -9,6 +9,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
+      // Les images d'aperçu et les fonctions Vercel ne passent pas par l'app hors ligne
+      workbox: { navigateFallbackDenylist: [/^\/api\//, /^\/og\//] },
       manifest: {
         name: 'tfek',
         short_name: 'tfek',

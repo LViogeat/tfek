@@ -25,7 +25,7 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
 4. **Notifications sans coût** : SMS = payant → à éviter. Les annonces et relances partent **du téléphone de l'organisateur** (WhatsApp / SMS / partage natif) avec un message pré-rédigé contenant le lien. Plus tard : push web (gratuit) et e-mail (offres gratuites) pour ceux qui l'acceptent, en option.
 5. **Confidentialité : simple par défaut, réglable si besoin.**
    - Défaut : visible par **quiconque a le lien**, liste des invités visible, +1 autorisés. Les events ne sont **pas listables**.
-   - Options : masquer la liste des invités, interdire les +1.
+   - Options : qui voit les réponses (tout le monde avec les prénoms, le nombre seulement, ou l'organisateur seul, comme sur Facebook), interdire les +1.
    - Plus tard : events **publics découvrables**.
 6. **Web app d'abord** (PWA), avec **Ionic + Vue + Capacitor** pour publier sur les stores plus tard sans réécrire.
 7. **Plus tard, si l'app perce** : events sponsorisés.
@@ -47,14 +47,15 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
 - Créer / modifier / annuler un event (titre, date, fin optionnelle, lieu, description, couleur du billet, options de confidentialité)
 - Page event : infos, ajout à l'agenda (.ics), lien carte, **dernière info mise en avant**, réponse Oui/Peut-être/Non + prénom + accompagnants, liste des invités groupée
 - Organisateur : publier une info puis la partager, inviter, relancer, supprimer une info
+- **Aperçu riche du lien** (WhatsApp, Messenger, iMessage, Telegram…) : image billet 1200 × 630 aux couleurs de l'event, titre, date, lieu et, si l'organisateur l'autorise, les réponses (« Alex, Inès et 10 autres viennent »). Rendu par des fonctions Vercel (`api/`), envoyé uniquement aux robots des messageries.
 - Comptes : code e-mail, fusion invité → compte, tableau de bord Organisés / Invitations, prénom modifiable
 
 ## Feuille de route
 
 Par ordre de priorité proposé :
 
-1. **Aperçu riche du lien dans WhatsApp** (titre, date, image) : nécessite des balises Open Graph rendues côté serveur pour `/e/:slug` (Edge Function Supabase ou fonction Vercel).
-2. **Mise en ligne** : projet Supabase cloud + hébergement statique (Vercel), SMTP réel (Resend/Brevo), domaine. Pas-à-pas dans [`DEPLOIEMENT.md`](DEPLOIEMENT.md).
+1. **Mise en ligne** : projet Supabase cloud + hébergement statique (Vercel), SMTP réel (Resend/Brevo), domaine. Pas-à-pas dans [`DEPLOIEMENT.md`](DEPLOIEMENT.md).
+2. **Vérifier l'aperçu du lien sur de vrais téléphones** une fois en ligne (WhatsApp, Messenger, iMessage), et passer le favicon (encore violet) au style billet.
 3. **Poids du bundle** (~330 Ko gzip) : découpage, chargement différé.
 4. **Notifications optionnelles** : push web pour les invités, e-mail pour les comptes (nouvelle info, rappel la veille).
 5. **Image de couverture** (Supabase Storage).
