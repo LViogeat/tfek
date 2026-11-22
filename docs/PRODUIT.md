@@ -50,6 +50,7 @@ Une **page par event**, partagée par un **simple lien** collé dans la conversa
 - **Invités attendus** : l'organisateur ajoute des prénoms (« Alex, Inès et Sam »). L'invité qui ouvre le lien se reconnaît d'un appui (« C'est toi ? ») au lieu de taper son prénom, et l'organisateur voit qui n'a **pas encore répondu**. La relance cite ces prénoms. Aucune étape en plus pour l'invité (« Autre prénom » reste possible). Les invités ne voient que les prénoms encore libres, jamais les réponses des autres par ce biais.
 - **Aperçu riche du lien** (WhatsApp, Messenger, iMessage, Telegram…) : image billet 1200 × 630 aux couleurs de l'event, titre, date, lieu et, si l'organisateur l'autorise, les réponses (« Alex, Inès et 10 autres viennent »). Rendu par des fonctions Vercel (`api/`), envoyé uniquement aux robots des messageries.
 - Comptes : code e-mail, fusion invité → compte, tableau de bord Organisés / Invitations, prénom modifiable
+- **Amis** (comptes seulement, jamais demandé à celui qui répond par le lien) : chacun a un **lien d'ami** à partager dans WhatsApp ; l'ouvrir rend amis tout de suite. Suggestions parmi les personnes croisées aux évènements (demande à accepter). Pas de recherche par e-mail, pour ne rien exposer. L'organisateur **invite ses amis d'un appui** : l'évènement apparaît dans leurs invitations (« À répondre ») sans passer par un message. Les amis sont repérés dans la liste des réponses.
 
 ## Feuille de route
 
@@ -62,5 +63,5 @@ Par ordre de priorité proposé :
 5. **Image de couverture** (Supabase Storage).
 6. Connexion Google en production.
 7. Builds natifs iOS/Android + liens profonds (le lien magique ouvre aujourd'hui la version web ; le code à 6 chiffres marche partout).
-8. **Couche sociale, dans un second temps** (décidé avec le porteur du projet) : amis, « tes amis qui y vont », évènements de tes amis. Réservée aux personnes qui ont un compte, **jamais imposée** à celui qui répond par le lien.
+8. **Suite de la couche sociale** (amis faits) : prévenir un ami invité (push web ou e-mail, il ne le voit aujourd'hui qu'en ouvrant l'app), option de visibilité « mes amis » pour qu'un évènement apparaisse chez eux sans invitation, « tes amis qui y vont » dans l'aperçu. Toujours réservé aux comptes, **jamais imposé** à celui qui répond par le lien.
 9. Idées en attente : « qui ramène quoi », sondage de date, commentaires, validation des participants par l'organisateur, co-organisateurs, dupliquer un évènement, events publics découvrables, events sponsorisés.

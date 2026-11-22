@@ -9,6 +9,7 @@
             <span class="name">
               {{ g.display_name }}<span v-if="g.is_me" class="muted"> (toi)</span>
               <span v-if="g.plus_ones" class="muted"> +{{ g.plus_ones }}</span>
+              <span v-if="g.is_friend" class="lbl friend-tag">ami</span>
             </span>
           </li>
         </ul>
@@ -114,6 +115,15 @@ li {
 }
 .name {
   font-size: 16px;
+}
+.friend-tag {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid var(--t-accent);
+  border-radius: 5px;
+  color: var(--t-accent);
+  font-size: 10px;
+  vertical-align: 2px;
 }
 .grow {
   flex: 1;

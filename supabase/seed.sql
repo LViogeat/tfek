@@ -40,3 +40,6 @@ insert into public.invitees (event_id, display_name, user_id) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'Alex', '22222222-2222-2222-2222-222222222222'),
   ('aaaaaaaa-0000-0000-0000-000000000001', 'Inès', null),
   ('aaaaaaaa-0000-0000-0000-000000000001', 'Jordan', null);
+
+-- Lien d'ami fixe de Camille pour les tests : /ami/camilleAmi23
+update public.profiles set friend_code = 'camilleAmi23' where id = '11111111-1111-1111-1111-111111111111';

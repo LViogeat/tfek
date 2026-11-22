@@ -57,6 +57,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"friendships": {
+                  Row: {
+                    "addressee_id": string,"created_at": string,"requester_id": string,"status": Database["public"]['Enums']["friendship_status"],"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "addressee_id": string,"created_at"?: string,"requester_id": string,"status"?: Database["public"]['Enums']["friendship_status"],"updated_at"?: string
+                  }
+                  Update: {
+                    "addressee_id"?: string,"created_at"?: string,"requester_id"?: string,"status"?: Database["public"]['Enums']["friendship_status"],"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"invitees": {
                   Row: {
                     "created_at": string,"display_name": string,"event_id": string,"id": string,"user_id": string | null
@@ -93,14 +107,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "created_at": string,"display_name": string | null,"id": string,"updated_at": string
+                    "created_at": string,"display_name": string | null,"friend_code": string,"id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"display_name"?: string | null,"id": string,"updated_at"?: string
+                    "created_at"?: string,"display_name"?: string | null,"friend_code"?: string,"id": string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"display_name"?: string | null,"id"?: string,"updated_at"?: string
+                    "created_at"?: string,"display_name"?: string | null,"friend_code"?: string,"id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -131,11 +145,28 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "add_invitees":
+            "accept_friend":
+{ Args: { "p_user": string }; Returns: boolean
+                           },
+"add_friend_by_code":
+{ Args: { "p_code": string }; Returns: string
+                           },
+"add_invitees":
 { Args: { "p_names": (string)[],"p_slug": string }; Returns: number
+                           },
+"are_friends":
+{ Args: { "p_a": string,"p_b": string }; Returns: boolean
                            },
 "create_merge_token":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"friend_state":
+{ Args: { "p_other": string }; Returns: string
+                           },
+"friend_suggestions":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "display_name": string,"shared_events": number,"user_id": string
+            }[]
                            },
 "generate_slug":
 { Args: { "len"?: number }; Returns: string
@@ -150,7 +181,7 @@ isOneToOne: false
                            },
 "get_event_guests":
 { Args: { "p_slug": string }; Returns: {
-              "display_name": string,"is_me": boolean,"plus_ones": number,"status": Database["public"]['Enums']["rsvp_status"],"updated_at": string
+              "display_name": string,"is_friend": boolean,"is_me": boolean,"plus_ones": number,"status": Database["public"]['Enums']["rsvp_status"],"updated_at": string
             }[]
                            },
 "get_event_invitees":
@@ -158,21 +189,46 @@ isOneToOne: false
               "display_name": string,"id": string,"is_me": boolean,"status": Database["public"]['Enums']["rsvp_status"]
             }[]
                            },
+"get_friend_link":
+{ Args: { "p_code": string }; Returns: Json
+                           },
+"get_invitable_friends":
+{ Args: { "p_slug": string }; Returns: {
+              "display_name": string,"user_id": string
+            }[]
+                           },
+"invite_friends":
+{ Args: { "p_slug": string,"p_user_ids": (string)[] }; Returns: number
+                           },
 "is_event_organizer":
 { Args: { "p_event_id": string }; Returns: boolean
                            },
 "is_registered":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
+"is_registered_user":
+{ Args: { "p_user": string }; Returns: boolean
+                           },
+"list_friends":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "display_name": string,"state": string,"user_id": string
+            }[]
+                           },
 "merge_anonymous_user":
 { Args: { "p_token": string }; Returns: number
+                           },
+"remove_friend":
+{ Args: { "p_user": string }; Returns: boolean
+                           },
+"request_friend":
+{ Args: { "p_user": string }; Returns: string
                            },
 "rsvp":
 { Args: { "p_display_name": string,"p_invitee_id"?: string,"p_plus_ones"?: number,"p_slug": string,"p_status": Database["public"]['Enums']["rsvp_status"] }; Returns: undefined
                            }
           }
           Enums: {
-            "event_visibility": "link"|"public","rsvp_status": "going"|"maybe"|"declined"
+            "event_visibility": "link"|"public","friendship_status": "pending"|"accepted","rsvp_status": "going"|"maybe"|"declined"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -292,7 +348,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "event_visibility": ["link", "public"],"rsvp_status": ["going", "maybe", "declined"]
+            "event_visibility": ["link", "public"],"friendship_status": ["pending", "accepted"],"rsvp_status": ["going", "maybe", "declined"]
           }
         }
 } as const

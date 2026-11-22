@@ -45,6 +45,8 @@ export interface Guest {
   status: RsvpStatus
   plus_ones: number
   is_me: boolean
+  /** Un de mes amis (compte tfek) */
+  is_friend: boolean
   updated_at: string
 }
 
@@ -156,17 +158,22 @@ export async function listOrganized(userId: string): Promise<EventRow[]> {
 }
 
 export interface Invitation {
-  status: RsvpStatus
+  /** `null` : invité par un ami organisateur, pas encore répondu */
+  status: RsvpStatus | null
   event: EventRow
 }
 
+/** Évènements auxquels j'ai répondu, et ceux où un organisateur m'a invité comme ami. */
 export async function listInvitations(userId: string): Promise<Invitation[]> {
-  const rows = check(
-    await supabase.from('rsvps').select('status, events(*)').eq('user_id', userId),
-  )
-  return rows
-    .filter((r) => r.events && r.events.organizer_id !== userId)
-    .map((r) => ({ status: r.status, event: r.events as EventRow }))
+  const [answered, invited] = await Promise.all([
+    supabase.from('rsvps').select('status, events(*)').eq('user_id', userId).then(check),
+    supabase.from('invitees').select('events(*)').eq('user_id', userId).then(check),
+  ])
+  const byEvent = new Map<string, Invitation>()
+  for (const r of invited) if (r.events) byEvent.set(r.events.id, { status: null, event: r.events as EventRow })
+  for (const r of answered) if (r.events) byEvent.set(r.events.id, { status: r.status, event: r.events as EventRow })
+  return [...byEvent.values()]
+    .filter((i) => i.event.organizer_id !== userId)
     .sort((a, b) => a.event.starts_at.localeCompare(b.event.starts_at))
 }
 

@@ -303,6 +303,131 @@ describe('invités attendus', () => {
   })
 })
 
+describe('amis', () => {
+  /** Un nouveau compte inscrit, avec un prénom. */
+  async function newUser(name: string) {
+    const c = client()
+    const email = `${name.normalize('NFD').replace(/[^a-z]/gi, '').toLowerCase()}${Math.random().toString(36).slice(2, 8)}@test.fr`
+    const { data, error } = await c.auth.signUp({ email, password: 'password', options: { data: { display_name: name } } })
+    if (error) throw error
+    return { c, id: data.user!.id }
+  }
+  async function codeOf(c: ReturnType<typeof client>, id: string) {
+    return (await c.from('profiles').select('friend_code').eq('id', id).single()).data!.friend_code
+  }
+
+  it('le lien d’ami rend amis tout de suite, dans les deux sens', async () => {
+    const a = await newUser('Nora')
+    const b = await newUser('Paul')
+    const code = await codeOf(a.c, a.id)
+
+    // Lisible sans compte, pour afficher la page du lien
+    expect((await client().rpc('get_friend_link', { p_code: code })).data).toMatchObject({ display_name: 'Nora', is_me: false, state: null })
+    expect((await b.c.rpc('add_friend_by_code', { p_code: code })).data).toBe('Nora')
+    expect((await a.c.rpc('list_friends')).data).toEqual([{ user_id: b.id, display_name: 'Paul', state: 'friends' }])
+    expect((await b.c.rpc('get_friend_link', { p_code: code })).data).toMatchObject({ state: 'friends' })
+    // Rouvrir le lien ne crée pas de doublon
+    expect((await b.c.rpc('add_friend_by_code', { p_code: code })).error).toBeNull()
+    expect((await b.c.rpc('list_friends')).data).toHaveLength(1)
+    expect((await a.c.rpc('add_friend_by_code', { p_code: code })).error?.message).toBe("C'est ton propre lien")
+  })
+
+  it('un invité anonyme ne peut pas avoir d’amis', async () => {
+    const a = await newUser('Nora')
+    const g = await guest()
+    expect((await g.rpc('add_friend_by_code', { p_code: await codeOf(a.c, a.id) })).error).not.toBeNull()
+    expect((await a.c.rpc('request_friend', { p_user: (await g.auth.getUser()).data.user!.id })).error).not.toBeNull()
+    // Pas de lien d'ami pour un anonyme
+    const gid = (await g.auth.getUser()).data.user!.id
+    expect((await client().rpc('get_friend_link', { p_code: await codeOf(g, gid) })).data).toBeNull()
+  })
+
+  it('demande, acceptation, refus et retrait', async () => {
+    const a = await newUser('Nora')
+    const b = await newUser('Paul')
+    const c = await newUser('Zoé')
+    expect((await a.c.rpc('request_friend', { p_user: b.id })).data).toBe('sent')
+    expect((await b.c.rpc('list_friends')).data).toEqual([{ user_id: a.id, display_name: 'Nora', state: 'received' }])
+    // Celui qui a demandé ne peut pas accepter à la place de l'autre
+    expect((await a.c.rpc('accept_friend', { p_user: b.id })).data).toBe(false)
+    expect((await b.c.rpc('accept_friend', { p_user: a.id })).data).toBe(true)
+    expect((await a.c.rpc('list_friends')).data?.[0]?.state).toBe('friends')
+
+    // Demandes croisées : la seconde vaut acceptation
+    await a.c.rpc('request_friend', { p_user: c.id })
+    expect((await c.c.rpc('request_friend', { p_user: a.id })).data).toBe('friends')
+
+    // Retirer, dans n'importe quel sens
+    expect((await b.c.rpc('remove_friend', { p_user: a.id })).data).toBe(true)
+    expect((await a.c.rpc('list_friends')).data?.map((f) => f.display_name)).toEqual(['Zoé'])
+
+    // Personne ne lit les amitiés des autres
+    expect((await b.c.from('friendships').select()).data).toEqual([])
+  })
+
+  it('suggestions : les comptes croisés aux évènements dont la liste est visible', async () => {
+    const orga = await newUser('Nora')
+    const b = await newUser('Paul')
+    const c = await newUser('Zoé')
+    const ev = async (show: boolean) =>
+      (await orga.c
+        .from('events')
+        .insert({ title: 'Apéro', starts_at: new Date(Date.now() + 86400e3).toISOString(), show_guest_list: show, show_counts: true })
+        .select()
+        .single()).data!.slug
+    const open = await ev(true)
+    const closed = await ev(false)
+    await b.c.rpc('rsvp', { p_slug: open, p_status: 'going', p_display_name: 'Paul' })
+    await c.c.rpc('rsvp', { p_slug: open, p_status: 'declined', p_display_name: 'Zoé' })
+    await c.c.rpc('rsvp', { p_slug: closed, p_status: 'going', p_display_name: 'Zoé' })
+    await b.c.rpc('rsvp', { p_slug: closed, p_status: 'going', p_display_name: 'Paul' })
+    // Un anonyme n'est jamais suggéré
+    await (await guest()).rpc('rsvp', { p_slug: open, p_status: 'going', p_display_name: 'Anonyme' })
+
+    // L'organisateur voit tous ceux qui viennent ; Paul voit l'organisatrice, et Zoé seulement
+    // via l'évènement fermé… où la liste est privée : pas de Zoé
+    const forOrga = (await orga.c.rpc('friend_suggestions')).data!
+    expect(forOrga.map((x) => [x.display_name, x.shared_events])).toEqual([['Paul', 2], ['Zoé', 1]])
+    expect((await b.c.rpc('friend_suggestions')).data?.map((x) => x.display_name)).toEqual(['Nora'])
+
+    await b.c.rpc('request_friend', { p_user: orga.id })
+    expect((await b.c.rpc('friend_suggestions')).data).toEqual([])
+  })
+
+  it('l’organisateur invite un ami : l’évènement est dans ses invitations avant qu’il réponde', async () => {
+    const orga = await newUser('Nora')
+    const b = await newUser('Paul')
+    const stranger = await newUser('Zoé')
+    await b.c.rpc('add_friend_by_code', { p_code: await codeOf(orga.c, orga.id) })
+    const { data: ev } = await orga.c
+      .from('events')
+      .insert({ title: 'Ciné', starts_at: new Date(Date.now() + 86400e3).toISOString() })
+      .select()
+      .single()
+
+    expect((await orga.c.rpc('get_invitable_friends', { p_slug: ev!.slug })).data).toEqual([{ user_id: b.id, display_name: 'Paul' }])
+    // Pas d'invitation pour qui n'est pas un ami
+    expect((await orga.c.rpc('invite_friends', { p_slug: ev!.slug, p_user_ids: [b.id, stranger.id] })).data).toBe(1)
+    expect((await orga.c.rpc('get_invitable_friends', { p_slug: ev!.slug })).data).toEqual([])
+    expect((await orga.c.rpc('get_event_invitees', { p_slug: ev!.slug })).data?.map((i) => [i.display_name, i.status])).toEqual([['Paul', null]])
+
+    // Paul voit l'évènement dans ses invitations, et se retrouve présélectionné
+    const { data: mine } = await b.c.from('invitees').select('events(slug)').eq('user_id', b.id)
+    expect(mine?.map((r) => r.events?.slug)).toEqual([ev!.slug])
+    expect((await b.c.rpc('get_event_invitees', { p_slug: ev!.slug })).data?.[0]?.is_me).toBe(true)
+    // Zoé, non invitée, ne voit rien
+    expect((await stranger.c.from('events').select().eq('id', ev!.id)).data).toEqual([])
+    // Un autre compte ne peut pas inviter à la place de l'organisateur
+    expect((await b.c.rpc('invite_friends', { p_slug: ev!.slug, p_user_ids: [orga.id] })).error).not.toBeNull()
+
+    // Paul répond : l'organisateur le voit, marqué comme ami
+    await b.c.rpc('rsvp', { p_slug: ev!.slug, p_status: 'going', p_display_name: 'Paul' })
+    const guests = (await orga.c.rpc('get_event_guests', { p_slug: ev!.slug })).data!
+    expect(guests.map((g) => [g.display_name, g.is_friend])).toEqual([['Paul', true]])
+    expect((await client().rpc('get_event_guests', { p_slug: ev!.slug })).data?.[0]?.is_friend).toBe(false)
+  })
+})
+
 describe('fusion invité → compte', () => {
   it('les réponses anonymes sont rattachées au compte après connexion', async () => {
     const c = await guest()

@@ -114,6 +114,20 @@
         <p v-else class="muted pad">Réponses privées</p>
 
         <div v-if="event.is_organizer && !event.cancelled_at" class="ion-padding">
+          <!-- Amis tfek : invités d'un appui, l'évènement apparaît dans leurs invitations -->
+          <div v-if="invitableFriends.length" class="friend-chips" role="group" aria-label="Inviter des amis">
+            <button
+              v-for="f in invitableFriends"
+              :key="f.user_id"
+              type="button"
+              class="friend-chip"
+              :disabled="adding"
+              @click="inviteFriend(f)"
+            >
+              <ion-icon :icon="addOutline" aria-hidden="true" />
+              {{ f.display_name }}
+            </button>
+          </div>
           <div class="add-invitees">
             <ion-input
               v-model="newInvitees"
@@ -168,7 +182,7 @@ import {
   IonRefresher, IonRefresherContent, alertController, toastController, onIonViewWillEnter,
 } from '@ionic/vue'
 import {
-  megaphoneOutline, shareOutline, createOutline, trashOutline, notificationsOutline, personAddOutline,
+  megaphoneOutline, shareOutline, createOutline, trashOutline, notificationsOutline, personAddOutline, addOutline,
 } from 'ionicons/icons'
 import EventTicket from '@/components/EventTicket.vue'
 import RsvpBar from '@/components/RsvpBar.vue'
@@ -179,6 +193,7 @@ import {
   postAnnouncement, type Announcement, type EventDetails, type Guest, type Invitee, type RsvpStatus,
 } from '@/lib/events'
 import { formatRelative, parseNames } from '@/lib/format'
+import { getInvitableFriends, inviteFriends } from '@/lib/friends'
 import { themeStyle } from '@/lib/themes'
 import { announcementText, eventUrl, invitationText, reminderText, shareUrl } from '@/lib/share'
 import { openShareSheet } from '@/lib/shareSheet'
@@ -193,6 +208,7 @@ const announcements = ref<Announcement[]>([])
 const invitees = ref<Invitee[]>([])
 const newInvitees = ref('')
 const adding = ref(false)
+const invitableFriends = ref<{ user_id: string; display_name: string }[]>([])
 // Organisateur : prénoms de sa liste sans réponse
 const pending = computed(() => invitees.value.filter((i) => i.status === null))
 const loading = ref(true)
@@ -216,18 +232,20 @@ async function load() {
   loading.value = true
   try {
     const e = await getEvent(props.slug)
-    const [g, a, i] = e
+    const [g, a, i, f] = e
       ? await Promise.all([
           e.show_guest_list || e.is_organizer ? getGuests(props.slug) : Promise.resolve([]),
           getAnnouncements(props.slug),
           getInvitees(props.slug),
+          e.is_organizer ? getInvitableFriends(props.slug) : Promise.resolve([]),
         ])
-      : [[], [], []]
+      : [[], [], [], []]
     if (seq !== loadSeq) return
     event.value = e
     guests.value = g
     announcements.value = a
     invitees.value = i
+    invitableFriends.value = f
   } catch (err) {
     if (seq === loadSeq) await toast((err as Error).message, 'danger')
   } finally {
@@ -306,6 +324,20 @@ async function addNames() {
     newInvitees.value = ''
     invitees.value = await getInvitees(props.slug)
     if (added < names.length) await toast(added ? `${added} ajouté${added > 1 ? 's' : ''}, les autres étaient déjà là` : 'Déjà dans la liste')
+  } catch (err) {
+    await toast((err as Error).message, 'danger')
+  } finally {
+    adding.value = false
+  }
+}
+
+async function inviteFriend(friend: { user_id: string; display_name: string }) {
+  if (adding.value) return
+  adding.value = true
+  try {
+    const added = await inviteFriends(props.slug, [friend.user_id])
+    ;[invitees.value, invitableFriends.value] = await Promise.all([getInvitees(props.slug), getInvitableFriends(props.slug)])
+    if (!added) await toast(`Un autre ${friend.display_name} est déjà dans la liste`)
   } catch (err) {
     await toast((err as Error).message, 'danger')
   } finally {
@@ -446,6 +478,28 @@ watch([() => currentUser.value?.id, mergedVersion], () => void load())
 .counts {
   margin: -4px 16px 14px;
   font-size: 15px;
+}
+.friend-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.friend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 12px 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--t-accent);
+  background: transparent;
+  color: var(--t-accent);
+  font: 600 14px/1 var(--ion-font-family);
+  cursor: pointer;
+}
+.friend-chip:disabled {
+  opacity: 0.5;
 }
 .add-invitees {
   display: flex;

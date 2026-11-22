@@ -74,6 +74,8 @@ $$;
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   display_name text check (char_length(display_name) <= 60),
+  -- Lien d'ami : /ami/<friend_code>
+  friend_code text not null unique default public.generate_slug(12),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -222,6 +224,10 @@ create policy "events: un invité voit les events auxquels il a répondu" on pub
   for select using (exists (
     select 1 from public.rsvps r where r.event_id = events.id and r.user_id = auth.uid()
   ));
+create policy "events: un invité attendu voit l'évènement" on public.events
+  for select using (exists (
+    select 1 from public.invitees i where i.event_id = events.id and i.user_id = auth.uid()
+  ));
 create policy "events: seul un compte inscrit peut créer" on public.events
   for insert with check (public.is_registered() and organizer_id = auth.uid());
 create policy "events: l'organisateur modifie" on public.events
@@ -239,6 +245,8 @@ create policy "rsvps: je supprime ma réponse" on public.rsvps
 
 create policy "invitees: l'organisateur voit ses invités" on public.invitees
   for select using (public.is_event_organizer(event_id));
+create policy "invitees: je vois les prénoms qui me désignent" on public.invitees
+  for select using (user_id = auth.uid());
 create policy "invitees: l'organisateur retire un invité" on public.invitees
   for delete using (public.is_event_organizer(event_id));
 -- Ajout via public.add_invitees(), « c'est moi » via public.rsvp()
@@ -302,22 +310,6 @@ as $$
   from public.events e
   left join public.profiles p on p.id = e.organizer_id
   where e.slug = p_slug;
-$$;
-
--- Liste des invités (si l'organisateur l'autorise, toujours pour l'organisateur)
-create or replace function public.get_event_guests(p_slug text)
-returns table (display_name text, status public.rsvp_status, plus_ones int, is_me boolean, updated_at timestamptz)
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select r.display_name, r.status, r.plus_ones, coalesce(r.user_id = auth.uid(), false), r.updated_at
-  from public.events e
-  join public.rsvps r on r.event_id = e.id
-  where e.slug = p_slug
-    and (e.show_guest_list or e.organizer_id = auth.uid())
-  order by r.status, r.created_at;
 $$;
 
 -- Invités attendus. Les invités ne voient que les prénoms libres (pour dire « c'est moi ») et le leur ;
@@ -571,13 +563,349 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Amis (comptes inscrits uniquement, jamais imposé à celui qui répond par le lien)
+-- On devient amis par le lien d'ami (le partager vaut accord) ou par une demande acceptée
+-- (suggestions : les personnes croisées aux mêmes évènements).
+-- ---------------------------------------------------------------------------
+create type public.friendship_status as enum ('pending', 'accepted');
+
+create table public.friendships (
+  requester_id uuid not null references auth.users (id) on delete cascade,
+  addressee_id uuid not null references auth.users (id) on delete cascade,
+  status public.friendship_status not null default 'pending',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (requester_id, addressee_id),
+  check (requester_id <> addressee_id)
+);
+
+-- Une seule relation par paire, quel que soit le sens
+create unique index friendships_pair_idx on public.friendships (
+  least(requester_id, addressee_id), greatest(requester_id, addressee_id)
+);
+create index friendships_addressee_idx on public.friendships (addressee_id);
+
+create trigger friendships_updated_at before update on public.friendships
+  for each row execute function public.set_updated_at();
+
+alter table public.friendships enable row level security;
+
+create policy "friendships: je vois les miennes" on public.friendships
+  for select using (auth.uid() in (requester_id, addressee_id));
+-- Écritures uniquement via les fonctions ci-dessous
+
+create or replace function public.is_registered_user(p_user uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from auth.users u where u.id = p_user and not u.is_anonymous);
+$$;
+
+create or replace function public.are_friends(p_a uuid, p_b uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.friendships f
+    where f.status = 'accepted'
+      and ((f.requester_id = p_a and f.addressee_id = p_b) or (f.requester_id = p_b and f.addressee_id = p_a))
+  );
+$$;
+
+-- Relation entre moi et p_other : 'friends', 'sent' (j'ai demandé), 'received' (on m'a demandé) ou null
+create or replace function public.friend_state(p_other uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case
+           when f.status = 'accepted' then 'friends'
+           when f.requester_id = auth.uid() then 'sent'
+           else 'received'
+         end
+  from public.friendships f
+  where (f.requester_id = auth.uid() and f.addressee_id = p_other)
+     or (f.requester_id = p_other and f.addressee_id = auth.uid());
+$$;
+
+-- Liste des invités (si l'organisateur l'autorise, toujours pour l'organisateur), avec mes amis repérés
+create or replace function public.get_event_guests(p_slug text)
+returns table (display_name text, status public.rsvp_status, plus_ones int, is_me boolean, is_friend boolean, updated_at timestamptz)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select r.display_name, r.status, r.plus_ones, coalesce(r.user_id = auth.uid(), false),
+         coalesce(public.are_friends(r.user_id, auth.uid()), false), r.updated_at
+  from public.events e
+  join public.rsvps r on r.event_id = e.id
+  where e.slug = p_slug
+    and (e.show_guest_list or e.organizer_id = auth.uid())
+  order by r.status, r.created_at;
+$$;
+
+-- Page du lien d'ami : prénom du propriétaire et relation avec moi (lisible sans compte)
+create or replace function public.get_friend_link(p_code text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'display_name', coalesce(p.display_name, 'Sans prénom'),
+    'is_me', coalesce(p.id = auth.uid(), false),
+    'state', public.friend_state(p.id)
+  )
+  from public.profiles p
+  join auth.users u on u.id = p.id
+  where p.friend_code = p_code and not u.is_anonymous;
+$$;
+
+-- Ouvrir le lien d'ami de quelqu'un : amis tout de suite (le partager vaut accord)
+create or replace function public.add_friend_by_code(p_code text)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_other uuid;
+  v_name text;
+begin
+  if not public.is_registered() then
+    raise exception 'Compte requis' using errcode = '28000';
+  end if;
+  select p.id, coalesce(p.display_name, 'Sans prénom') into v_other, v_name
+  from public.profiles p
+  join auth.users u on u.id = p.id
+  where p.friend_code = p_code and not u.is_anonymous;
+  if v_other is null then
+    raise exception 'Ce lien d''ami n''existe pas' using errcode = 'P0002';
+  end if;
+  if v_other = auth.uid() then
+    raise exception 'C''est ton propre lien' using errcode = 'P0001';
+  end if;
+
+  insert into public.friendships (requester_id, addressee_id, status)
+  values (auth.uid(), v_other, 'accepted')
+  on conflict do nothing;
+  -- Une demande attendait, dans un sens ou dans l'autre : elle devient une amitié
+  update public.friendships set status = 'accepted'
+  where status = 'pending'
+    and ((requester_id = auth.uid() and addressee_id = v_other) or (requester_id = v_other and addressee_id = auth.uid()));
+  return v_name;
+end;
+$$;
+
+-- Demande d'ami (depuis les suggestions). Si l'autre m'a déjà demandé, on devient amis.
+create or replace function public.request_friend(p_user uuid)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.is_registered() then
+    raise exception 'Compte requis' using errcode = '28000';
+  end if;
+  if p_user = auth.uid() or not public.is_registered_user(p_user) then
+    raise exception 'Personne introuvable' using errcode = 'P0002';
+  end if;
+  update public.friendships set status = 'accepted'
+  where requester_id = p_user and addressee_id = auth.uid() and status = 'pending';
+  if not found then
+    insert into public.friendships (requester_id, addressee_id) values (auth.uid(), p_user)
+    on conflict do nothing;
+  end if;
+  return public.friend_state(p_user);
+end;
+$$;
+
+create or replace function public.accept_friend(p_user uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.friendships set status = 'accepted'
+  where requester_id = p_user and addressee_id = auth.uid() and status = 'pending';
+  return found;
+end;
+$$;
+
+-- Retirer un ami, refuser ou annuler une demande
+create or replace function public.remove_friend(p_user uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  delete from public.friendships
+  where (requester_id = auth.uid() and addressee_id = p_user)
+     or (requester_id = p_user and addressee_id = auth.uid());
+  return found;
+end;
+$$;
+
+create or replace function public.list_friends()
+returns table (user_id uuid, display_name text, state text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select o.id, coalesce(p.display_name, 'Sans prénom'),
+         case
+           when f.status = 'accepted' then 'friends'
+           when f.requester_id = auth.uid() then 'sent'
+           else 'received'
+         end
+  from public.friendships f
+  cross join lateral (
+    select case when f.requester_id = auth.uid() then f.addressee_id else f.requester_id end as id
+  ) o
+  left join public.profiles p on p.id = o.id
+  where auth.uid() in (f.requester_id, f.addressee_id)
+  order by lower(coalesce(p.display_name, ''));
+$$;
+
+-- Suggestions : comptes croisés aux mêmes évènements (organisateur, ou invité qui n'a pas dit non),
+-- seulement là où la liste des invités m'était visible.
+create or replace function public.friend_suggestions()
+returns table (user_id uuid, display_name text, shared_events int)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with mine as (
+    select e.id, e.organizer_id, e.show_guest_list from public.events e
+    where e.organizer_id = auth.uid()
+    union
+    select e.id, e.organizer_id, e.show_guest_list from public.events e
+    join public.rsvps r on r.event_id = e.id and r.user_id = auth.uid() and r.status <> 'declined'
+  ), people as (
+    select m.id as event_id, m.organizer_id as user_id from mine m
+    union
+    select m.id, r.user_id from mine m
+    join public.rsvps r on r.event_id = m.id and r.status <> 'declined'
+    where m.show_guest_list or m.organizer_id = auth.uid()
+  )
+  select pe.user_id, coalesce(p.display_name, 'Sans prénom'), count(distinct pe.event_id)::int
+  from people pe
+  join auth.users u on u.id = pe.user_id and not u.is_anonymous
+  left join public.profiles p on p.id = pe.user_id
+  where public.is_registered()
+    and pe.user_id <> auth.uid()
+    and public.friend_state(pe.user_id) is null
+  group by pe.user_id, p.display_name
+  order by 3 desc, 2
+  limit 20;
+$$;
+
+-- Organisateur : amis qu'il peut encore inviter à cet évènement
+create or replace function public.get_invitable_friends(p_slug text)
+returns table (user_id uuid, display_name text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select o.id, coalesce(p.display_name, 'Sans prénom')
+  from public.events e
+  join public.friendships f on f.status = 'accepted' and auth.uid() in (f.requester_id, f.addressee_id)
+  cross join lateral (
+    select case when f.requester_id = auth.uid() then f.addressee_id else f.requester_id end as id
+  ) o
+  left join public.profiles p on p.id = o.id
+  where e.slug = p_slug
+    and e.organizer_id = auth.uid()
+    and not exists (select 1 from public.invitees i where i.event_id = e.id and i.user_id = o.id)
+    and not exists (select 1 from public.rsvps r where r.event_id = e.id and r.user_id = o.id)
+  order by lower(coalesce(p.display_name, ''));
+$$;
+
+-- L'organisateur invite des amis : ils deviennent des invités attendus déjà reconnus,
+-- et l'évènement apparaît dans leurs invitations avant même qu'ils répondent.
+create or replace function public.invite_friends(p_slug text, p_user_ids uuid[])
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_event_id uuid;
+  v_friend record;
+  v_count int := 0;
+begin
+  select id into v_event_id from public.events where slug = p_slug and organizer_id = auth.uid();
+  if v_event_id is null then
+    raise exception 'Réservé à l''organisateur' using errcode = '42501';
+  end if;
+
+  for v_friend in
+    select distinct o.id, coalesce(p.display_name, 'Sans prénom') as name
+    from unnest(p_user_ids) as o(id)
+    left join public.profiles p on p.id = o.id
+    where public.are_friends(o.id, auth.uid())
+      and not exists (select 1 from public.invitees i where i.event_id = v_event_id and i.user_id = o.id)
+  loop
+    -- Le même prénom, encore libre, est déjà dans la liste : c'est lui
+    update public.invitees set user_id = v_friend.id
+    where event_id = v_event_id and lower(display_name) = lower(v_friend.name) and user_id is null;
+    if not found then
+      insert into public.invitees (event_id, display_name, user_id)
+      values (v_event_id, v_friend.name, v_friend.id)
+      on conflict do nothing;
+    end if;
+    if found then
+      v_count := v_count + 1;
+    end if;
+  end loop;
+  return v_count;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Droits
 -- ---------------------------------------------------------------------------
 revoke execute on function public.create_merge_token() from public, anon;
 revoke execute on function public.merge_anonymous_user(text) from public, anon;
 revoke execute on function public.rsvp(text, public.rsvp_status, text, int, uuid) from public, anon;
 revoke execute on function public.add_invitees(text, text[]) from public, anon;
+revoke execute on function public.is_registered_user(uuid) from public, anon, authenticated;
+revoke execute on function public.friend_state(uuid) from public, anon;
+revoke execute on function public.are_friends(uuid, uuid) from public, anon, authenticated;
+revoke execute on function public.add_friend_by_code(text) from public, anon;
+revoke execute on function public.request_friend(uuid) from public, anon;
+revoke execute on function public.accept_friend(uuid) from public, anon;
+revoke execute on function public.remove_friend(uuid) from public, anon;
+revoke execute on function public.list_friends() from public, anon;
+revoke execute on function public.friend_suggestions() from public, anon;
+revoke execute on function public.get_invitable_friends(text) from public, anon;
+revoke execute on function public.invite_friends(text, uuid[]) from public, anon;
 grant execute on function public.create_merge_token() to authenticated;
 grant execute on function public.merge_anonymous_user(text) to authenticated;
 grant execute on function public.rsvp(text, public.rsvp_status, text, int, uuid) to authenticated;
 grant execute on function public.add_invitees(text, text[]) to authenticated;
+grant execute on function public.friend_state(uuid) to authenticated;
+grant execute on function public.add_friend_by_code(text) to authenticated;
+grant execute on function public.request_friend(uuid) to authenticated;
+grant execute on function public.accept_friend(uuid) to authenticated;
+grant execute on function public.remove_friend(uuid) to authenticated;
+grant execute on function public.list_friends() to authenticated;
+grant execute on function public.friend_suggestions() to authenticated;
+grant execute on function public.get_invitable_friends(text) to authenticated;
+grant execute on function public.invite_friends(text, uuid[]) to authenticated;

@@ -9,6 +9,7 @@
       <p>{{ formatShortDate(event.starts_at) }}<template v-if="event.location"> · {{ event.location }}</template></p>
     </ion-label>
     <RsvpBadge v-if="status" slot="end" :status="status" />
+    <ion-badge v-else-if="status === null && !event.cancelled_at" slot="end" class="mono to-answer">À répondre</ion-badge>
     <ion-badge v-else-if="event.cancelled_at" slot="end" color="medium">Annulé</ion-badge>
   </ion-item>
 </template>
@@ -21,7 +22,7 @@ import { formatShortDate } from '@/lib/format'
 import type { EventRow, RsvpStatus } from '@/lib/events'
 import { getTheme } from '@/lib/themes'
 
-const props = defineProps<{ event: EventRow; status?: RsvpStatus }>()
+const props = defineProps<{ event: EventRow; status?: RsvpStatus | null }>()
 
 const date = computed(() => new Date(props.event.starts_at))
 const day = computed(() => date.value.getDate())
@@ -58,5 +59,19 @@ h2 {
 }
 .cancelled {
   text-decoration: line-through;
+}
+.to-answer {
+  --background: transparent;
+  --color: var(--t-accent);
+  --padding-start: 8px;
+  --padding-end: 8px;
+  --padding-top: 5px;
+  --padding-bottom: 5px;
+  border: 1px solid var(--t-accent);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 </style>
