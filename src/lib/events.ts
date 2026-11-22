@@ -26,7 +26,18 @@ export interface EventDetails {
   is_organizer: boolean
   /** `null` quand l'organisateur garde les réponses pour lui */
   counts: { going: number; maybe: number; declined: number } | null
-  my_rsvp: { status: RsvpStatus; display_name: string; plus_ones: number } | null
+  my_rsvp: { status: RsvpStatus; display_name: string; plus_ones: number; invitee_id: string | null } | null
+}
+
+/**
+ * Invité attendu (prénom ajouté par l'organisateur). Un invité ne reçoit que les prénoms libres et le
+ * sien ; l'organisateur les reçoit tous, avec leur réponse (`null` : pas encore répondu).
+ */
+export interface Invitee {
+  id: string
+  display_name: string
+  is_me: boolean
+  status: RsvpStatus | null
 }
 
 export interface Guest {
@@ -34,6 +45,8 @@ export interface Guest {
   status: RsvpStatus
   plus_ones: number
   is_me: boolean
+  /** Un de mes amis (compte tfek) */
+  is_friend: boolean
   updated_at: string
 }
 
@@ -75,15 +88,36 @@ export async function getAnnouncements(slug: string): Promise<Announcement[]> {
   return check(await supabase.rpc('get_event_announcements', { p_slug: slug }))
 }
 
-export async function respond(slug: string, status: RsvpStatus, displayName: string, plusOnes = 0) {
+/** `inviteeId` : prénom de la liste choisi par l'invité (« c'est moi »). */
+export async function respond(
+  slug: string,
+  status: RsvpStatus,
+  displayName: string,
+  plusOnes = 0,
+  inviteeId: string | null = null,
+) {
   check(
     await supabase.rpc('rsvp', {
       p_slug: slug,
       p_status: status,
       p_display_name: displayName,
       p_plus_ones: plusOnes,
+      ...(inviteeId ? { p_invitee_id: inviteeId } : {}),
     }),
   )
+}
+
+export async function getInvitees(slug: string): Promise<Invitee[]> {
+  return check(await supabase.rpc('get_event_invitees', { p_slug: slug })) as Invitee[]
+}
+
+/** Renvoie le nombre de prénoms ajoutés (les doublons sont ignorés). */
+export async function addInvitees(slug: string, names: string[]): Promise<number> {
+  return check(await supabase.rpc('add_invitees', { p_slug: slug, p_names: names }))
+}
+
+export async function deleteInvitee(id: string) {
+  check(await supabase.from('invitees').delete().eq('id', id))
 }
 
 /**
@@ -124,17 +158,22 @@ export async function listOrganized(userId: string): Promise<EventRow[]> {
 }
 
 export interface Invitation {
-  status: RsvpStatus
+  /** `null` : invité par un ami organisateur, pas encore répondu */
+  status: RsvpStatus | null
   event: EventRow
 }
 
+/** Évènements auxquels j'ai répondu, et ceux où un organisateur m'a invité comme ami. */
 export async function listInvitations(userId: string): Promise<Invitation[]> {
-  const rows = check(
-    await supabase.from('rsvps').select('status, events(*)').eq('user_id', userId),
-  )
-  return rows
-    .filter((r) => r.events && r.events.organizer_id !== userId)
-    .map((r) => ({ status: r.status, event: r.events as EventRow }))
+  const [answered, invited] = await Promise.all([
+    supabase.from('rsvps').select('status, events(*)').eq('user_id', userId).then(check),
+    supabase.from('invitees').select('events(*)').eq('user_id', userId).then(check),
+  ])
+  const byEvent = new Map<string, Invitation>()
+  for (const r of invited) if (r.events) byEvent.set(r.events.id, { status: null, event: r.events as EventRow })
+  for (const r of answered) if (r.events) byEvent.set(r.events.id, { status: r.status, event: r.events as EventRow })
+  return [...byEvent.values()]
+    .filter((i) => i.event.organizer_id !== userId)
     .sort((a, b) => a.event.starts_at.localeCompare(b.event.starts_at))
 }
 

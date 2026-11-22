@@ -9,20 +9,37 @@
             <span class="name">
               {{ g.display_name }}<span v-if="g.is_me" class="muted"> (toi)</span>
               <span v-if="g.plus_ones" class="muted"> +{{ g.plus_ones }}</span>
+              <span v-if="g.is_friend" class="lbl friend-tag">ami</span>
             </span>
           </li>
         </ul>
       </div>
     </template>
-    <p v-if="guests.length === 0" class="muted empty">Personne n’a encore répondu.</p>
+    <!-- Organisateur : prénoms de sa liste qui n'ont pas encore répondu -->
+    <div v-if="pending?.length" class="group">
+      <h3 class="lbl group-title">Pas encore répondu · {{ pending.length }}</h3>
+      <ul>
+        <li v-for="i in pending" :key="i.id">
+          <span class="avatar mono pending">{{ initials(i.display_name) }}</span>
+          <span class="name grow">{{ i.display_name }}</span>
+          <ion-button fill="clear" color="medium" size="small" :aria-label="`Retirer ${i.display_name}`" @click="emit('remove', i)">
+            <ion-icon slot="icon-only" :icon="closeOutline" />
+          </ion-button>
+        </li>
+      </ul>
+    </div>
+    <p v-if="guests.length === 0 && !pending?.length" class="muted empty">Personne n’a encore répondu.</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Guest, RsvpStatus } from '@/lib/events'
+import { IonButton, IonIcon } from '@ionic/vue'
+import { closeOutline } from 'ionicons/icons'
+import type { Guest, Invitee, RsvpStatus } from '@/lib/events'
 
-const props = defineProps<{ guests: Guest[] }>()
+const props = defineProps<{ guests: Guest[]; pending?: Invitee[] }>()
+const emit = defineEmits<{ remove: [invitee: Invitee] }>()
 
 const LABELS: Record<RsvpStatus, string> = { going: 'Viennent', maybe: 'Peut-être', declined: 'Ne viennent pas' }
 
@@ -91,8 +108,26 @@ li {
   border-color: var(--t-accent);
   color: var(--t-accent);
 }
+.avatar.pending {
+  background: transparent;
+  border-style: dashed;
+  color: var(--tfek-muted);
+}
 .name {
   font-size: 16px;
+}
+.friend-tag {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid var(--t-accent);
+  border-radius: 5px;
+  color: var(--t-accent);
+  font-size: 10px;
+  vertical-align: 2px;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
 }
 .empty {
   margin: 0;

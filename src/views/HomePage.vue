@@ -4,6 +4,10 @@
       <ion-toolbar>
         <ion-title class="brand">tfek</ion-title>
         <ion-buttons slot="end">
+          <ion-button v-if="isRegistered" router-link="/amis" aria-label="Amis" class="friends-btn">
+            <ion-icon slot="icon-only" :icon="peopleOutline" />
+            <span v-if="requests" class="dot mono">{{ requests }}</span>
+          </ion-button>
           <ion-button v-if="isRegistered" router-link="/account" aria-label="Mon compte">
             <ion-icon slot="icon-only" :icon="personCircleOutline" />
           </ion-button>
@@ -30,7 +34,9 @@
         <template v-if="isRegistered">
           <h1 class="disp home-title">Tes évènements</h1>
           <div class="segment-wrap">
-            <ion-segment v-model="tab">
+            <!-- Affiché une fois l'onglet choisi : sinon Ionic anime la bascule vers « Invitations » -->
+            <div v-if="!tabChosen" class="segment-placeholder" />
+            <ion-segment v-else v-model="tab">
               <ion-segment-button value="organized">
                 <ion-label>Organisés ({{ organized.length }})</ion-label>
               </ion-segment-button>
@@ -84,15 +90,20 @@ import {
   IonSegment, IonSegmentButton, IonLabel, IonList, IonFab, IonFabButton,
   IonRefresher, IonRefresherContent, onIonViewWillEnter, toastController,
 } from '@ionic/vue'
-import { addOutline, personCircleOutline, informationCircleOutline } from 'ionicons/icons'
+import { addOutline, personCircleOutline, informationCircleOutline, peopleOutline } from 'ionicons/icons'
 import EventListItem from '@/components/EventListItem.vue'
 import { currentUser, isRegistered, mergedVersion } from '@/lib/auth'
 import { listInvitations, listOrganized, type EventRow, type Invitation } from '@/lib/events'
+import { listFriends } from '@/lib/friends'
 
 const tab = ref<'organized' | 'invited'>('organized')
 const organized = ref<EventRow[]>([])
 const invitations = ref<Invitation[]>([])
 const loading = ref(false)
+// L'onglet de départ est choisi au premier chargement (« Invitations » si on n'organise rien)
+const tabChosen = ref(false)
+// Demandes d'ami reçues, signalées sur le bouton Amis
+const requests = ref(0)
 
 // Plusieurs déclencheurs (entrée sur la page, changement de session, fusion) :
 // seule la réponse de la dernière requête est appliquée.
@@ -104,19 +115,26 @@ async function load() {
   if (!user) {
     organized.value = []
     invitations.value = []
+    requests.value = 0
+    tabChosen.value = false
     return
   }
   loading.value = true
   try {
     const registered = isRegistered.value
-    const [o, i] = await Promise.all([
+    const [o, i, f] = await Promise.all([
       registered ? listOrganized(user.id) : Promise.resolve([]),
       listInvitations(user.id),
+      registered ? listFriends() : Promise.resolve([]),
     ])
     if (seq !== loadSeq) return
     organized.value = o
     invitations.value = i
-    if (registered && o.length === 0 && i.length > 0) tab.value = 'invited'
+    requests.value = f.filter((x) => x.state === 'received').length
+    if (!tabChosen.value) {
+      tab.value = registered && o.length === 0 && i.length > 0 ? 'invited' : 'organized'
+      tabChosen.value = true
+    }
   } catch (e) {
     if (seq !== loadSeq) return
     const t = await toastController.create({
@@ -127,7 +145,11 @@ async function load() {
     })
     await t.present()
   } finally {
-    if (seq === loadSeq) loading.value = false
+    if (seq === loadSeq) {
+      loading.value = false
+      // Même en cas d'erreur, on affiche les onglets
+      tabChosen.value = true
+    }
   }
 }
 
@@ -137,7 +159,15 @@ async function refresh(ev: CustomEvent) {
 }
 
 onIonViewWillEnter(load)
-watch([() => currentUser.value?.id, mergedVersion], load)
+// Autre compte (connexion, déconnexion) : on rechoisit l'onglet de départ
+watch(
+  () => currentUser.value?.id,
+  () => {
+    tabChosen.value = false
+    void load()
+  },
+)
+watch(mergedVersion, load)
 </script>
 
 <style scoped>
@@ -165,8 +195,28 @@ watch([() => currentUser.value?.id, mergedVersion], load)
 .empty {
   text-align: center;
 }
+.friends-btn {
+  position: relative;
+}
+.dot {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--t-accent);
+  color: var(--t-on-accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+}
 .segment-wrap {
   padding: 16px 16px 0;
+}
+.segment-placeholder {
+  height: 33px;
 }
 .nudge {
   display: flex;

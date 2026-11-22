@@ -34,7 +34,34 @@
         </div>
 
         <div v-if="status" class="details">
-          <ion-item lines="full" class="field">
+          <!-- Prénoms ajoutés par l'organisateur : l'invité se reconnaît d'un appui -->
+          <template v-if="invitees.length">
+            <span id="rsvp-who" class="lbl muted who-title">C’est toi ?</span>
+            <div class="names" role="group" aria-labelledby="rsvp-who">
+              <button
+                v-for="i in invitees"
+                :key="i.id"
+                type="button"
+                class="name-chip"
+                :class="{ selected: picked === i.id }"
+                :aria-pressed="picked === i.id"
+                @click="picked = i.id"
+              >
+                {{ i.display_name }}
+              </button>
+              <button
+                type="button"
+                class="name-chip other"
+                :class="{ selected: picked === OTHER }"
+                :aria-pressed="picked === OTHER"
+                @click="picked = OTHER"
+              >
+                Autre prénom
+              </button>
+            </div>
+          </template>
+
+          <ion-item v-if="!invitees.length || picked === OTHER" lines="full" class="field">
             <ion-input
               v-model="name"
               label="Ton prénom"
@@ -58,7 +85,7 @@
             </div>
           </ion-item>
 
-          <ion-button expand="block" class="send" :disabled="!name.trim() || saving" @click="submit">
+          <ion-button expand="block" class="send" :disabled="!canSend || saving" @click="submit">
             <ion-spinner v-if="saving" slot="start" name="crescent" />
             Envoyer ma réponse
           </ion-button>
@@ -69,17 +96,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { IonButton, IonItem, IonInput, IonLabel, IonIcon, IonSpinner, toastController } from '@ionic/vue'
 import { addOutline, removeOutline } from 'ionicons/icons'
 import Confetti from './Confetti.vue'
 import { currentUser, ensureGuestSession } from '@/lib/auth'
-import { getMyDisplayName, respond, type EventDetails, type RsvpStatus } from '@/lib/events'
+import { getMyDisplayName, respond, type EventDetails, type Invitee, type RsvpStatus } from '@/lib/events'
 
 const props = defineProps<{
   slug: string
   myRsvp: EventDetails['my_rsvp']
   allowPlusOnes: boolean
+  /** Prénoms libres de la liste de l'organisateur, et le mien */
+  invitees: Invitee[]
 }>()
 const emit = defineEmits<{ answered: [status: RsvpStatus] }>()
 
@@ -95,6 +124,20 @@ const status = ref<RsvpStatus | null>(props.myRsvp?.status ?? null)
 const name = ref(props.myRsvp?.display_name ?? '')
 const plusOnes = ref(props.myRsvp?.plus_ones ?? 0)
 const saving = ref(false)
+// Prénom de la liste choisi (id), `OTHER` pour taper le sien, `null` : pas encore choisi
+const OTHER = 'other'
+const picked = ref<string | null>(null)
+
+const pickedInvitee = computed(() => props.invitees.find((i) => i.id === picked.value) ?? null)
+const canSend = computed(() => (pickedInvitee.value ? true : (!props.invitees.length || picked.value === OTHER) && !!name.value.trim()))
+
+/** Présélectionne mon prénom dans la liste : celui que j'ai choisi, sinon celui que je porte. */
+function preselect() {
+  const mine = props.invitees.find((i) => i.is_me || i.id === props.myRsvp?.invitee_id)
+  const known = name.value.trim().toLowerCase()
+  const same = known ? props.invitees.find((i) => i.display_name.toLowerCase() === known) : undefined
+  picked.value = mine?.id ?? same?.id ?? (props.myRsvp ? OTHER : null)
+}
 // Confettis, une seule fois, quand l'invité répond « Oui »
 const burst = ref(false)
 
@@ -107,8 +150,10 @@ watch(
       name.value = r.display_name
       plusOnes.value = r.plus_ones
     }
+    preselect()
   },
 )
+watch(() => props.invitees, preselect, { immediate: true })
 
 // Pré-remplit le prénom connu (compte ou réponse précédente)
 watch(
@@ -116,6 +161,7 @@ watch(
   async (id) => {
     if (!id || name.value) return
     name.value = (await getMyDisplayName(id)) ?? ''
+    if (!picked.value) preselect()
   },
   { immediate: true },
 )
@@ -129,14 +175,22 @@ function cancelEdit() {
   editing.value = false
   status.value = props.myRsvp?.status ?? null
   plusOnes.value = props.myRsvp?.plus_ones ?? 0
+  preselect()
 }
 
 async function submit() {
-  if (!status.value || !name.value.trim() || saving.value) return
+  if (!status.value || !canSend.value || saving.value) return
   saving.value = true
+  const invitee = pickedInvitee.value
   try {
     await ensureGuestSession()
-    await respond(props.slug, status.value, name.value.trim(), status.value === 'declined' ? 0 : plusOnes.value)
+    await respond(
+      props.slug,
+      status.value,
+      invitee?.display_name ?? name.value.trim(),
+      status.value === 'declined' ? 0 : plusOnes.value,
+      invitee?.id ?? null,
+    )
     editing.value = false
     if (status.value === 'going') {
       burst.value = true
@@ -208,6 +262,42 @@ async function submit() {
 }
 .details {
   margin-top: 4px;
+}
+.who-title {
+  display: block;
+  margin: 10px 0 6px;
+}
+.names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 132px;
+  overflow-y: auto;
+}
+.name-chip {
+  min-height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(244, 239, 230, 0.32);
+  background: transparent;
+  color: var(--tfek-text);
+  font: 500 15px/1 var(--ion-font-family);
+  padding: 0 14px;
+  cursor: pointer;
+}
+.name-chip.other {
+  border-style: dashed;
+  color: var(--tfek-muted);
+}
+.name-chip.selected {
+  background: var(--t-accent);
+  border-color: var(--t-accent);
+  border-style: solid;
+  color: var(--t-on-accent);
+  font-weight: 700;
+}
+.name-chip:focus-visible {
+  outline: 2px solid var(--tfek-text);
+  outline-offset: 2px;
 }
 .field {
   --padding-start: 0;

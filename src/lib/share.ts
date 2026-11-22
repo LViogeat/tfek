@@ -1,5 +1,6 @@
 import { Share } from '@capacitor/share'
 import { publicUrl } from './appUrl'
+import { joinNames } from './format'
 import { goingNames, imageVersion, showResponses, type PreviewEvent, type PreviewGuest } from './linkPreview'
 
 export function eventUrl(slug: string): string {
@@ -58,6 +59,13 @@ export function announcementText(title: string, body: string, url: string): stri
   return `Info pour « ${title} »\n${body}\n\nInfos et réponses : ${url}`
 }
 
-export function reminderText(title: string, url: string): string {
+/** Avec les prénoms de ceux qui n'ont pas répondu, pour les interpeller dans le groupe. */
+export function reminderText(title: string, url: string, pending: string[] = []): string {
+  if (pending.length === 1) {
+    return `Petit rappel pour « ${title} ». ${pending[0]}, dis-moi si tu viens : ${url}`
+  }
+  if (pending.length > 1 && pending.length <= 8) {
+    return `Petit rappel pour « ${title} ». ${joinNames(pending)}, dites-moi si vous venez : ${url}`
+  }
   return `Petit rappel pour « ${title} ». Si ce n’est pas déjà fait, dis-moi si tu viens : ${url}`
 }

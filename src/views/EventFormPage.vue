@@ -177,6 +177,9 @@ const endsAt = ref('')
 const showEnd = ref(false)
 const saving = ref(false)
 const original = ref<EventRow | null>(null)
+// Identifiant de ce brouillon, envoyé à chaque publication : une nouvelle tentative après une erreur
+// réseau (alors que l'évènement est déjà enregistré) renvoie le même évènement au lieu d'un doublon
+const draftId = ref<string>(crypto.randomUUID())
 
 const canSubmit = computed(() => form.title.trim().length > 0 && !!startsAt.value)
 
@@ -216,9 +219,11 @@ async function toast(message: string, color = 'dark') {
   await t.present()
 }
 
-async function publish(input: EventInput, draftId?: string) {
-  const created = await createEvent(input, draftId)
+async function publish(input: EventInput) {
+  const created = await createEvent(input, draftId.value)
   clearDraft()
+  // Ionic garde la page en cache : le prochain évènement aura son propre identifiant
+  draftId.value = crypto.randomUUID()
   await router.replace({ path: `/e/${created.slug}`, query: { created: '1' } })
 }
 
@@ -236,7 +241,7 @@ async function submit() {
       await toast('Évènement mis à jour')
       router.back()
     } else if (!isRegistered.value) {
-      saveDraft({ ...input, publishAfterLogin: true, draftId: crypto.randomUUID() })
+      saveDraft({ ...input, publishAfterLogin: true, draftId: draftId.value })
       // Le retour de connexion passe par /new?publish=1 : seul ce retour publie le brouillon
       await router.push({ path: '/login', query: { redirect: '/new?publish=1', reason: 'publish' } })
     } else {
@@ -290,6 +295,7 @@ onIonViewWillEnter(async () => {
   const draft = loadDraft()
   if (!draft) return
   fill(draft)
+  if (draft.draftId) draftId.value = draft.draftId
   const returningFromLogin = route.query.publish === '1'
   if (!returningFromLogin || !draft.publishAfterLogin || !isRegistered.value) {
     // Brouillon abandonné : on pré-remplit seulement, sans publier
@@ -301,7 +307,7 @@ onIonViewWillEnter(async () => {
   saveDraft({ ...draft, publishAfterLogin: false })
   saving.value = true
   try {
-    await publish(toInput(), draft.draftId)
+    await publish(toInput())
   } catch (e) {
     await toast((e as Error).message, 'danger')
   } finally {

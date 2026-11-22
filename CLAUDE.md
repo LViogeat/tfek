@@ -46,6 +46,7 @@ src/
   lib/database.types.ts                GÉNÉRÉ (npm run db:types) — ne pas éditer à la main
   lib/auth.ts                          état de session, invité anonyme, connexion, fusion invité→compte
   lib/events.ts                        toutes les requêtes (RPC + tables) et les types métier
+  lib/friends.ts                       amis : lien d'ami, demandes, suggestions, inviter des amis
   lib/appUrl.ts                        origine publique (VITE_PUBLIC_URL, obligatoire en natif)
   lib/share.ts / shareSheet.ts         textes pré-rédigés + feuille WhatsApp / SMS / natif / copier
   lib/ics.ts                           export agenda (RFC 5545 ; partage de fichier en natif)
@@ -54,9 +55,9 @@ src/
   lib/linkPreview.ts                   empreinte de l'aperçu, partagée entre l'app (?r=) et api/
   lib/themes.ts                        thèmes des billets (doit rester aligné avec la contrainte events.theme)
   lib/format.ts                        dates en français
-  views/                               HomePage, EventPage, EventFormPage, LoginPage, AccountPage
+  views/                               HomePage, EventPage, EventFormPage, LoginPage, AccountPage, FriendsPage, FriendLinkPage
   theme/variables.css                  thème sombre global, polices, tokens du style billet
-  components/                          EventTicket (+ TfekStamp), RsvpBar (réponse fixée en bas, + Confetti), GuestList, EventListItem, RsvpBadge
+  components/                          EventTicket (+ TfekStamp), RsvpBar (réponse fixée en bas, « C'est toi ? », + Confetti), GuestList (+ « Pas encore répondu »), EventListItem, RsvpBadge
 tests/
   db.test.ts                           intégration sur la base locale (règles d'accès, fusion, slugs, aperçu)
   preview.test.ts                      unitaires de l'aperçu du lien et du lien partagé
@@ -64,14 +65,18 @@ tests/
   e2e/smoke.cjs                        parcours complets dans Chromium (iPhone simulé)
 ```
 
-Routes : `/` accueil · `/new` création · `/e/:slug` event · `/e/:slug/edit` édition · `/login?redirect=…&reason=publish` · `/account`.
+Routes : `/` accueil · `/new` création · `/e/:slug` event · `/e/:slug/edit` édition · `/login?redirect=…&reason=publish` · `/account` · `/amis` · `/ami/:code` (lien d'ami, `?add=1` au retour de connexion).
 
 ## Modèle de données et sécurité
 
-Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris), `events`, `rsvps` (PK `event_id, user_id`), `announcements`, `merge_tokens`.
+Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris), `events`, `rsvps` (PK `event_id, user_id`), `invitees`, `announcements`, `merge_tokens`, `friendships`.
 
 - **Accès par lien** : `events` n'est pas lisible publiquement. La lecture publique passe par des RPC `security definer` qui prennent le slug : `get_event` (détails + compteurs + `my_rsvp` + `is_organizer`), `get_event_guests` (respecte `show_guest_list`, jamais de `user_id` exposé), `get_event_announcements`.
-- **Répondre** : uniquement via la RPC `rsvp(slug, status, display_name, plus_ones)`, qui exige une session (anonyme acceptée) et refuse les events annulés.
+- **Répondre** : uniquement via la RPC `rsvp(slug, status, display_name, plus_ones, invitee_id)`, qui exige une session (anonyme acceptée) et refuse les events annulés.
+- **Invités attendus** (`invitees`) : prénoms ajoutés par l'organisateur (`add_invitees`, sans doublon, insensible à la casse). En répondant, l'invité dit « c'est moi » (`invitee_id`, ou un prénom tapé identique) : `invitees.user_id` le retient, une personne = un prénom par évènement, un prénom pris ne peut plus l'être par un autre. `get_event_invitees` ne renvoie jamais de réponse aux invités : liste publique → les prénoms libres et le leur ; **réponses privées → tous les prénoms**, sinon un prénom qui disparaît trahirait une réponse (et choisir un prénom pris enregistre la réponse sans rattachement au lieu d'une erreur). L'organisateur les reçoit tous avec leur réponse (`null` = pas encore répondu). Un prénom ajouté après coup est rattaché à celui qui a déjà répondu sous ce prénom, et à la fusion invité → compte le « c'est moi » suit la réponse gardée.
+- **Amis** (`friendships`, comptes inscrits uniquement) : une ligne par paire (index unique sur `least/greatest`), `pending` puis `accepted`. Écritures **uniquement par RPC** : `add_friend_by_code` (ouvrir le lien d'ami de quelqu'un = amis tout de suite, le partager vaut accord ; `profiles.friend_code`), `request_friend` (demande ; des demandes croisées valent acceptation), `accept_friend`, `remove_friend` (retirer, refuser, annuler). Lecture : `list_friends`, `friend_suggestions` (comptes croisés aux mêmes évènements, organisateur ou réponse autre que « non », **seulement là où la liste des invités m'était visible**), `get_friend_link`. Pas de recherche par e-mail.
+- **Inviter des amis** : `invite_friends` crée des `invitees` déjà rattachés à l'ami (ou rattache un prénom libre identique ; homonyme déjà pris → « Alex 2 »). Les amis sans prénom ne sont pas invitables : la page Amis demande le prénom avant de partager le lien. La policy « un invité attendu voit l'évènement » fait apparaître l'évènement dans ses « Invitations » (badge « À répondre ») avant qu'il réponde. `get_invitable_friends` liste les amis pas encore invités ; `get_event_guests` renvoie `is_friend`.
+- **Publication** : le formulaire envoie toujours un `draftId` (renouvelé après chaque publication, la page restant en cache) : republier après une erreur réseau renvoie l'évènement déjà créé.
 - **Créer un event** : policy `is_registered()` (session non anonyme). Modifier, supprimer ou publier une annonce : organisateur uniquement (`is_event_organizer`).
 - **Visibilité des réponses** : trois niveaux dans le formulaire (« Qui voit les réponses »), stockés dans `show_guest_list` et `show_counts` (contrainte : la liste implique le nombre). Sans `show_counts`, `get_event` renvoie `counts: null` aux invités. Le même réglage s'applique à l'aperçu du lien.
 - **Lecture directe autorisée** : l'organisateur voit ses events et leurs réponses ; un utilisateur voit ses réponses et les events auxquels il a répondu (pour « Invitations »). ⚠️ Un invité peut donc *lire* la ligne d'un event auquel il a répondu : toute requête « réservée à l'organisateur » doit filtrer sur `organizer_id` (voir `getEventForEdit`).
@@ -114,7 +119,7 @@ npm run db:start      # Supabase local (Docker)
 npm run dev           # http://localhost:5173
 ```
 
-- Comptes de test (mot de passe `password`) : `orga@test.fr` (Camille, organise `anniv-camille` et `rando-vercors`), `invite@test.fr` (Alex, a répondu à `anniv-camille`). Connexion en 1 clic sur `/login` en mode dev.
+- Comptes de test (mot de passe `password`) : `orga@test.fr` (Camille, organise `anniv-camille` et `rando-vercors`), `invite@test.fr` (Alex, a répondu à `anniv-camille`). Invités attendus d'`anniv-camille` : Alex (a répondu), Inès et Jordan. Lien d'ami fixe de Camille : `/ami/camilleAmi23` (aucune amitié dans le seed). Connexion en 1 clic sur `/login` en mode dev.
 - E-mails : Mailpit http://127.0.0.1:54324 · Base : Studio http://127.0.0.1:54323.
 
 ### Dans une session Claude Code cloud
@@ -132,7 +137,7 @@ Le premier `supabase start` télécharge les images (quelques minutes). Si un `d
 
 ```bash
 npm run typecheck
-npm run db:reset && npm test        # 44 tests, base locale requise
+npm run db:reset && npm test        # 60 tests, base locale requise
 npm run db:reset && npm run e2e     # serveur dev lancé ; captures dans tests/e2e/shots/
 npm run build
 ```

@@ -52,13 +52,16 @@ async function emailCode(email) {
   const button = (p, text) => p.locator('ion-button', { hasText: text })
   const titleInput = 'input[placeholder^="Anniversaire"]'
 
-  // 1. Invité sans compte : répond avec son prénom
+  // 1. Invité sans compte : se reconnaît dans la liste de l'organisateur (« c'est moi »)
   const g = await newPage()
   await g.goto(`${BASE}/e/anniv-camille`)
   await g.getByText('Tu viens ?').waitFor()
   await g.screenshot({ path: `${OUT}/1-event-invite.png`, fullPage: true })
   await g.getByRole('button', { name: /Oui/ }).click()
-  await g.locator('ion-input input').first().fill('Jordan')
+  await g.getByText('C’est toi ?').waitFor()
+  check('invité : Alex, qui a déjà répondu, n’est pas proposé', (await g.locator('.name-chip', { hasText: 'Alex' }).count()) === 0)
+  await g.locator('.name-chip', { hasText: 'Jordan' }).click()
+  await g.screenshot({ path: `${OUT}/1b-cest-moi.png` })
   await g.getByRole('button', { name: /Envoyer ma réponse/ }).click()
   await g.getByText('C’est noté.', { exact: true }).waitFor()
   // La liste des invités se recharge juste après le message : on attend qu'elle contienne Jordan
@@ -123,6 +126,18 @@ async function emailCode(email) {
     .then(() => true, () => false)
   check('organisateur : réponses privées', hidden && (await visible(p, '.counts').count()) === 0)
 
+  // 3c. L'organisateur voit qui n'a pas encore répondu et ajoute des prénoms
+  await o.goto(`${BASE}/e/anniv-camille`)
+  const pendingTitle = visible(o, '.group-title').filter({ hasText: 'Pas encore répondu' })
+  await pendingTitle.waitFor({ timeout: 8000 })
+  check('organisateur : Inès n’a pas encore répondu', (await pendingTitle.innerText()).includes('· 1'))
+  await visible(o, 'input[placeholder^="Ajouter des invités"]').fill('Léo, Mia et Inès')
+  await visible(o, '.add-invitees ion-button').click()
+  await o.getByText('2 ajoutés, les autres étaient déjà là').waitFor({ timeout: 5000 })
+  check('organisateur : prénoms ajoutés sans doublon', (await pendingTitle.innerText()).includes('· 3'))
+  await sleep(300)
+  await o.screenshot({ path: `${OUT}/4c-pas-encore-repondu.png`, fullPage: true })
+
   // 4. Un invité inscrit ne peut pas ouvrir le formulaire d'édition
   const i = await newPage()
   await i.goto(`${BASE}/login`)
@@ -131,6 +146,39 @@ async function emailCode(email) {
   await i.goto(`${BASE}/e/anniv-camille/edit`)
   await i.waitForURL(`${BASE}/`, { timeout: 8000 })
   check('invité : édition refusée', true)
+
+  // 4b. Amis : sans compte, le lien d'ami mène à la connexion ; Alex ajoute Camille par son lien
+  const v = await newPage()
+  await v.goto(`${BASE}/ami/camilleAmi23`)
+  await v.getByRole('button', { name: /Ajouter en ami/ }).click()
+  await v.waitForURL(/\/login\?redirect=/)
+  check('amis : sans compte, le lien mène à la connexion', decodeURIComponent(v.url()).includes('/ami/camilleAmi23?add=1'))
+  await i.goto(`${BASE}/ami/camilleAmi23`)
+  await i.getByText('Camille', { exact: true }).waitFor()
+  await i.screenshot({ path: `${OUT}/5a-lien-ami.png` })
+  await i.getByRole('button', { name: /Ajouter en ami/ }).click()
+  await i.getByText('Camille et toi êtes amis').waitFor({ timeout: 5000 })
+  check('amis : ajout par le lien', true)
+
+  // 4c. Camille invite Alex d'un appui à la pétanque : l'évènement arrive dans ses invitations
+  await o.goto(`${BASE}/e/${slug}`)
+  const chip = visible(o, '.friend-chip').filter({ hasText: 'Alex' })
+  await chip.waitFor({ timeout: 8000 })
+  await chip.click()
+  await visible(o, '.guests li').filter({ hasText: 'Alex' }).waitFor({ timeout: 5000 })
+  check('amis : l’organisateur invite un ami d’un appui', (await visible(o, '.friend-chip').count()) === 0)
+  await o.screenshot({ path: `${OUT}/5b-ami-invite.png`, fullPage: true })
+  await i.goto(`${BASE}/`)
+  await i.getByText('Invitations (2)').waitFor({ timeout: 8000 })
+  await visible(i, 'ion-segment-button').filter({ hasText: 'Invitations' }).click()
+  const invited = visible(i, 'ion-item').filter({ hasText: 'Pétanque au parc' })
+  await invited.waitFor({ timeout: 8000 })
+  check('amis : invitation reçue « À répondre »', /à répondre/i.test(await invited.innerText()))
+  await i.screenshot({ path: `${OUT}/5c-invitations-ami.png` })
+  await i.goto(`${BASE}/amis`)
+  await visible(i, '.people').getByText('Camille').waitFor({ timeout: 8000 })
+  await i.screenshot({ path: `${OUT}/5d-amis.png`, fullPage: true })
+  check('amis : Camille dans la liste d’Alex', true)
 
   // 5. Brouillon abandonné : pré-rempli plus tard, mais jamais publié tout seul
   const d = await newPage()
