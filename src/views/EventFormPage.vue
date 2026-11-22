@@ -86,20 +86,20 @@
             <div slot="content">
               <ion-list>
                 <ion-item>
-                  <ion-select v-model="form.visibility" label="Qui peut voir l’événement" label-placement="stacked" interface="action-sheet">
+                  <ion-select v-model="form.visibility" label="Qui peut voir l’événement" label-placement="stacked" interface="action-sheet" cancel-text="Annuler">
                     <ion-select-option value="link">Ceux qui ont le lien</ion-select-option>
                     <ion-select-option value="public" disabled>Tout le monde (bientôt)</ion-select-option>
                   </ion-select>
                 </ion-item>
                 <ion-item>
-                  <ion-select v-model="responsesVisibility" class="responses-select" label="Qui voit les réponses" label-placement="stacked" interface="action-sheet">
+                  <ion-select v-model="responsesVisibility" class="responses-select" label="Qui voit les réponses" label-placement="stacked" interface="action-sheet" cancel-text="Annuler">
                     <ion-select-option value="all">Tous : nombre et prénoms</ion-select-option>
                     <ion-select-option value="count">Tous : le nombre seulement</ion-select-option>
                     <ion-select-option value="me">Toi seul</ion-select-option>
                   </ion-select>
                 </ion-item>
                 <ion-item lines="none">
-                  <ion-toggle v-model="form.allow_plus_ones">Autoriser les accompagnants (+1)</ion-toggle>
+                  <ion-toggle v-model="form.allow_plus_ones">Autoriser les +1</ion-toggle>
                 </ion-item>
               </ion-list>
             </div>
