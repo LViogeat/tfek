@@ -63,7 +63,7 @@
           </ion-list>
           <p class="muted ion-padding-horizontal nudge">
             <ion-icon :icon="informationCircleOutline" />
-            <router-link to="/login">Crée ton compte</router-link> pour les retrouver sur tous tes appareils.
+            <router-link to="/login">Créer un compte</router-link>
           </p>
         </template>
       </div>

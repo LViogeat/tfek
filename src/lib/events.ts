@@ -86,8 +86,16 @@ export async function respond(slug: string, status: RsvpStatus, displayName: str
   )
 }
 
-export async function createEvent(input: EventInput): Promise<EventRow> {
-  return check(await supabase.from('events').insert(input).select().single())
+/**
+ * Crée l'évènement. Avec `draftId`, la publication d'un brouillon est idempotente : si un autre
+ * onglet l'a déjà publié (contrainte unique organisateur + brouillon), on renvoie celui-là.
+ */
+export async function createEvent(input: EventInput, draftId?: string): Promise<EventRow> {
+  const res = await supabase.from('events').insert({ ...input, draft_id: draftId ?? null }).select().single()
+  if (res.error?.code === '23505' && draftId) {
+    return check(await supabase.from('events').select().eq('draft_id', draftId).single())
+  }
+  return check(res)
 }
 
 export async function updateEvent(id: string, input: Partial<EventInput> & { cancelled_at?: string | null }) {

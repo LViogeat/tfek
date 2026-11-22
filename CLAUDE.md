@@ -49,7 +49,9 @@ src/
   lib/appUrl.ts                        origine publique (VITE_PUBLIC_URL, obligatoire en natif)
   lib/share.ts / shareSheet.ts         textes pré-rédigés + feuille WhatsApp / SMS / natif / copier
   lib/ics.ts                           export agenda (RFC 5545 ; partage de fichier en natif)
-  lib/draft.ts                         brouillon d'event (localStorage) pendant la connexion
+  lib/draft.ts                         brouillon d'event (localStorage) pendant la connexion, avec un draftId
+  lib/redirect.ts                      safeRedirect : chemin de retour après connexion, limité à l'app
+  lib/linkPreview.ts                   empreinte de l'aperçu, partagée entre l'app (?r=) et api/
   lib/themes.ts                        thèmes des billets (doit rester aligné avec la contrainte events.theme)
   lib/format.ts                        dates en français
   views/                               HomePage, EventPage, EventFormPage, LoginPage, AccountPage
@@ -80,12 +82,13 @@ Tables : `profiles` (créé par trigger pour chaque utilisateur, anonyme compris
 1. Un invité répond → `ensureGuestSession()` → `signInAnonymously()`.
 2. Avant toute connexion (`sendEmailCode`, `signInWithPassword`, `signInWithGoogle`), `prepareGuestMerge()` crée un jeton de fusion s'il est anonyme (localStorage `tfek.mergeToken`).
 3. Au `SIGNED_IN` d'un vrai compte, `mergePendingGuest()` appelle `merge_anonymous_user(token)`, puis incrémente `mergedVersion` : les pages qui le surveillent rechargent.
-4. Création d'event sans compte : brouillon enregistré, puis `/login?redirect=/new?publish=1`. **Seul ce retour avec `publish=1` publie automatiquement**. Un brouillon abandonné ne fait que pré-remplir le formulaire.
+4. Création d'event sans compte : brouillon enregistré (avec un `draftId`), puis `/login?redirect=/new?publish=1`. **Seul ce retour avec `publish=1` publie automatiquement**. Un brouillon abandonné ne fait que pré-remplir le formulaire. La contrainte unique `(organizer_id, draft_id)` empêche de publier deux fois le même brouillon (lien de connexion ouvert dans un autre onglet) : `createEvent` renvoie alors l'évènement existant.
+5. Fusion invité → compte : si les deux ont répondu au même évènement, la réponse la plus récente gagne.
 
 ## Aperçu du lien (Open Graph)
 
 - Les robots (WhatsApp, facebookexternalhit, Twitterbot, TelegramBot…) n'exécutent pas le JS. `vercel.json` les reconnaît à leur user-agent et réécrit `/e/:slug` vers `/api/event-preview`. Les humains reçoivent l'app normale.
-- L'URL de l'image contient une empreinte (`imageVersion`) : elle change quand le titre, la date, le thème ou les réponses changent. Les liens partagés ajoutent `?r=oui-peutêtre` (`shareUrl`) pour contourner le cache de WhatsApp par adresse.
+- L'URL de l'image contient une empreinte (`imageVersion`) : elle change quand le titre, la date, le thème ou les réponses changent. Les liens partagés ajoutent `?r=<même empreinte>` (`shareUrl`, calculée comme la voit un visiteur sans session) pour contourner le cache de WhatsApp par adresse.
 - Les réponses ne s'affichent qu'à partir d'un « oui » (jamais « 0 viennent ») ; les prénoms seulement si la liste est publique.
 - **Satori** (moteur de @vercel/og) : tout `div` à plusieurs enfants doit être en `display: flex` (le helper `h()` le fait), un enfant unique se passe sans tableau, et des lettres tournées loin de l'origine du canevas sont mal placées : le tampon est donc rendu dans sa propre image puis incrusté (`stampTree` + `renderOgImage`).
 - `@vercel/og` est épinglé en **0.11.1** : la 1.0.x publiée référence un `hb.wasm` absent du paquet.
@@ -129,7 +132,7 @@ Le premier `supabase start` télécharge les images (quelques minutes). Si un `d
 
 ```bash
 npm run typecheck
-npm run db:reset && npm test        # 36 tests, base locale requise
+npm run db:reset && npm test        # 44 tests, base locale requise
 npm run db:reset && npm run e2e     # serveur dev lancé ; captures dans tests/e2e/shots/
 npm run build
 ```

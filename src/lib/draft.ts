@@ -4,6 +4,8 @@ const KEY = 'tfek.draftEvent'
 
 export interface Draft extends EventInput {
   publishAfterLogin?: boolean
+  /** Identifiant unique du brouillon, enregistré avec l'évènement pour ne le publier qu'une fois */
+  draftId?: string
 }
 
 export function saveDraft(d: Draft) {

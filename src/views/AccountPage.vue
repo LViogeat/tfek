@@ -64,9 +64,14 @@ onIonViewWillEnter(async () => {
 async function saveName() {
   const n = name.value.trim()
   if (!currentUser.value || !n || n === savedName) return
-  await setMyDisplayName(currentUser.value.id, n)
-  savedName = n
-  const t = await toastController.create({ message: 'Prénom enregistré', duration: 1500, position: 'top' })
+  let message = 'Prénom enregistré'
+  try {
+    await setMyDisplayName(currentUser.value.id, n)
+    savedName = n
+  } catch {
+    message = 'Le prénom n’a pas pu être enregistré'
+  }
+  const t = await toastController.create({ message, duration: 2000, position: 'top' })
   await t.present()
 }
 

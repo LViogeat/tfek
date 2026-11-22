@@ -130,8 +130,11 @@ create table public.events (
   show_counts boolean not null default true,
   allow_plus_ones boolean not null default true,
   cancelled_at timestamptz,
+  -- Identifiant du brouillon publié : empêche de publier deux fois le même (deux onglets)
+  draft_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  unique (organizer_id, draft_id),
   check (ends_at is null or ends_at >= starts_at),
   check (show_counts or not show_guest_list)
 );
@@ -326,10 +329,10 @@ begin
 
   select * into v_event from public.events where slug = p_slug;
   if not found then
-    raise exception 'Event introuvable' using errcode = 'P0002';
+    raise exception 'Évènement introuvable' using errcode = 'P0002';
   end if;
   if v_event.cancelled_at is not null then
-    raise exception 'Cet event est annulé' using errcode = 'P0001';
+    raise exception 'Cet évènement est annulé' using errcode = 'P0001';
   end if;
   if v_name is null or v_name = '' then
     raise exception 'Le prénom est requis' using errcode = '22023';
@@ -396,6 +399,7 @@ as $$
 declare
   v_anon uuid;
   v_count int;
+  v_updated int;
 begin
   if not public.is_registered() then
     raise exception 'Compte inscrit requis' using errcode = '28000';
@@ -409,13 +413,24 @@ begin
     return 0;
   end if;
 
-  -- Récupère les réponses qui n'existent pas déjà sur le compte inscrit
+  -- Même évènement des deux côtés : la réponse la plus récente gagne
+  update public.rsvps r
+  set status = a.status, display_name = a.display_name, plus_ones = a.plus_ones
+  from public.rsvps a
+  where a.user_id = v_anon
+    and r.user_id = auth.uid()
+    and r.event_id = a.event_id
+    and a.updated_at > r.updated_at;
+  get diagnostics v_updated = row_count;
+
+  -- Récupère les réponses qui n'existent pas encore sur le compte inscrit
   update public.rsvps r set user_id = auth.uid()
   where r.user_id = v_anon
     and not exists (
       select 1 from public.rsvps r2 where r2.event_id = r.event_id and r2.user_id = auth.uid()
     );
   get diagnostics v_count = row_count;
+  v_count := v_count + v_updated;
 
   delete from public.rsvps where user_id = v_anon;
 

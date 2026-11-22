@@ -66,7 +66,7 @@
             </ion-button>
           </form>
           <p class="muted small center">
-            Envoyé à {{ email }}. Tu peux aussi cliquer sur le lien dans l’e-mail.<br />
+            Code envoyé à {{ email }}<br />
             <a href="#" @click.prevent="step = 'email'">Changer d’adresse</a>
           </p>
         </template>
@@ -90,15 +90,13 @@ import {
   IonList, IonItem, IonInput, IonIcon, IonSpinner, toastController,
 } from '@ionic/vue'
 import { logoGoogle } from 'ionicons/icons'
+import { safeRedirect } from '@/lib/redirect'
 import { isRegistered, sendEmailCode, signInWithGoogle, signInWithPassword, verifyEmailCode } from '@/lib/auth'
 
 const route = useRoute()
 const router = useRouter()
 
-const redirect = computed(() => {
-  const r = route.query.redirect
-  return typeof r === 'string' && r.startsWith('/') && !r.startsWith('//') ? r : '/'
-})
+const redirect = computed(() => safeRedirect(route.query.redirect))
 const reason = computed(() => route.query.reason)
 const headline = computed(() => (reason.value === 'publish' ? 'Crée ton compte pour publier' : 'Connecte-toi à tfek'))
 

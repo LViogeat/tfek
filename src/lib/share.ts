@@ -1,5 +1,6 @@
 import { Share } from '@capacitor/share'
 import { publicUrl } from './appUrl'
+import { goingNames, imageVersion, showResponses, type PreviewEvent, type PreviewGuest } from './linkPreview'
 
 export function eventUrl(slug: string): string {
   return publicUrl(`/e/${slug}`)
@@ -7,19 +8,15 @@ export function eventUrl(slug: string): string {
 
 /**
  * Lien à mettre dans les messages. WhatsApp et Messenger gardent l'aperçu en cache pour chaque
- * adresse : quand les réponses sont affichées dans l'aperçu, on ajoute `?r=oui-peutêtre` pour
- * qu'un rappel montre les chiffres du moment et pas ceux du premier envoi.
+ * adresse : quand les réponses sont affichées dans l'aperçu, on ajoute `?r=<empreinte de l'image>`
+ * pour qu'un rappel montre les réponses du moment (chiffres et prénoms) et pas celles du premier envoi.
  */
-export function shareUrl(event: {
-  slug: string
-  show_counts: boolean
-  cancelled_at: string | null
-  counts: { going: number; maybe: number } | null
-}): string {
+export function shareUrl(event: PreviewEvent, guests: PreviewGuest[] = []): string {
   const base = eventUrl(event.slug)
-  const c = event.counts
-  if (!event.show_counts || event.cancelled_at || !c || c.going === 0) return base
-  return `${base}?r=${c.going}-${c.maybe}`
+  // Ce que voit le robot d'une messagerie, qui consulte l'évènement sans session
+  const seen: PreviewEvent = { ...event, counts: event.show_counts ? event.counts : null }
+  if (!showResponses(seen)) return base
+  return `${base}?r=${imageVersion(seen, goingNames(seen, guests))}`
 }
 
 export function whatsappUrl(text: string): string {
@@ -39,8 +36,9 @@ export async function canNativeShare(): Promise<boolean> {
   }
 }
 
-export async function nativeShare(title: string, text: string, url: string) {
-  await Share.share({ title, text, url, dialogTitle: title })
+/** Le lien est déjà dans le texte : on ne le passe pas en plus, sinon il apparaît deux fois. */
+export async function nativeShare(title: string, text: string) {
+  await Share.share({ title, text, dialogTitle: title })
 }
 
 export async function copyToClipboard(text: string): Promise<boolean> {
