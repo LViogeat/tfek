@@ -34,7 +34,9 @@
         <template v-if="isRegistered">
           <h1 class="disp home-title">Tes évènements</h1>
           <div class="segment-wrap">
-            <ion-segment v-model="tab">
+            <!-- Affiché une fois l'onglet choisi : sinon Ionic anime la bascule vers « Invitations » -->
+            <div v-if="!tabChosen" class="segment-placeholder" />
+            <ion-segment v-else v-model="tab">
               <ion-segment-button value="organized">
                 <ion-label>Organisés ({{ organized.length }})</ion-label>
               </ion-segment-button>
@@ -98,6 +100,8 @@ const tab = ref<'organized' | 'invited'>('organized')
 const organized = ref<EventRow[]>([])
 const invitations = ref<Invitation[]>([])
 const loading = ref(false)
+// L'onglet de départ est choisi au premier chargement (« Invitations » si on n'organise rien)
+const tabChosen = ref(false)
 // Demandes d'ami reçues, signalées sur le bouton Amis
 const requests = ref(0)
 
@@ -112,6 +116,7 @@ async function load() {
     organized.value = []
     invitations.value = []
     requests.value = 0
+    tabChosen.value = false
     return
   }
   loading.value = true
@@ -126,7 +131,10 @@ async function load() {
     organized.value = o
     invitations.value = i
     requests.value = f.filter((x) => x.state === 'received').length
-    if (registered && o.length === 0 && i.length > 0) tab.value = 'invited'
+    if (!tabChosen.value) {
+      tab.value = registered && o.length === 0 && i.length > 0 ? 'invited' : 'organized'
+      tabChosen.value = true
+    }
   } catch (e) {
     if (seq !== loadSeq) return
     const t = await toastController.create({
@@ -137,7 +145,11 @@ async function load() {
     })
     await t.present()
   } finally {
-    if (seq === loadSeq) loading.value = false
+    if (seq === loadSeq) {
+      loading.value = false
+      // Même en cas d'erreur, on affiche les onglets
+      tabChosen.value = true
+    }
   }
 }
 
@@ -147,7 +159,15 @@ async function refresh(ev: CustomEvent) {
 }
 
 onIonViewWillEnter(load)
-watch([() => currentUser.value?.id, mergedVersion], load)
+// Autre compte (connexion, déconnexion) : on rechoisit l'onglet de départ
+watch(
+  () => currentUser.value?.id,
+  () => {
+    tabChosen.value = false
+    void load()
+  },
+)
+watch(mergedVersion, load)
 </script>
 
 <style scoped>
@@ -194,6 +214,9 @@ watch([() => currentUser.value?.id, mergedVersion], load)
 }
 .segment-wrap {
   padding: 16px 16px 0;
+}
+.segment-placeholder {
+  height: 33px;
 }
 .nudge {
   display: flex;
