@@ -39,7 +39,6 @@
               v-model="name"
               label="Ton prénom"
               label-placement="stacked"
-              placeholder="Ton prénom"
               :maxlength="60"
               autocomplete="given-name"
               @keyup.enter="submit"
