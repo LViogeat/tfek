@@ -86,8 +86,8 @@
             <div slot="content">
               <ion-list>
                 <ion-item>
-                  <ion-select v-model="form.visibility" label="Qui peut voir l’event" interface="action-sheet">
-                    <ion-select-option value="link">Les personnes qui ont le lien</ion-select-option>
+                  <ion-select v-model="form.visibility" label="Qui peut voir l’event" label-placement="stacked" interface="action-sheet">
+                    <ion-select-option value="link">Ceux qui ont le lien</ion-select-option>
                     <ion-select-option value="public" disabled>Tout le monde (bientôt)</ion-select-option>
                   </ion-select>
                 </ion-item>
