@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button :default-href="slug ? `/e/${slug}` : '/'" text="" />
         </ion-buttons>
-        <ion-title>{{ slug ? 'Modifier l’event' : 'Nouvel event' }}</ion-title>
+        <ion-title>{{ slug ? 'Modifier l’événement' : 'Nouvel événement' }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -86,7 +86,7 @@
             <div slot="content">
               <ion-list>
                 <ion-item>
-                  <ion-select v-model="form.visibility" label="Qui peut voir l’event" label-placement="stacked" interface="action-sheet">
+                  <ion-select v-model="form.visibility" label="Qui peut voir l’événement" label-placement="stacked" interface="action-sheet">
                     <ion-select-option value="link">Ceux qui ont le lien</ion-select-option>
                     <ion-select-option value="public" disabled>Tout le monde (bientôt)</ion-select-option>
                   </ion-select>
@@ -98,9 +98,6 @@
                     <ion-select-option value="me">Toi seul</ion-select-option>
                   </ion-select>
                 </ion-item>
-                <p class="muted toggle-help responses-help ion-padding-horizontal">
-                  C’est aussi ce qui s’affiche dans l’aperçu du lien sur WhatsApp et Messenger.
-                </p>
                 <ion-item lines="none">
                   <ion-toggle v-model="form.allow_plus_ones">Autoriser les accompagnants (+1)</ion-toggle>
                 </ion-item>
@@ -112,11 +109,8 @@
         <div class="ion-padding">
           <ion-button type="submit" expand="block" :disabled="saving || !canSubmit">
             <ion-spinner v-if="saving" slot="start" name="crescent" />
-            {{ slug ? 'Enregistrer' : 'Publier l’event' }}
+            {{ slug ? 'Enregistrer' : 'Publier l’événement' }}
           </ion-button>
-          <p v-if="!slug && !isRegistered" class="muted hint">
-            On te demandera juste ton e-mail pour publier : c’est ce qui te permet de gérer l’event et voir les réponses.
-          </p>
           <ion-button
             v-if="slug && original && !original.cancelled_at"
             expand="block"
@@ -124,7 +118,7 @@
             color="danger"
             @click="cancelEvent"
           >
-            Annuler l’event
+            Annuler l’événement
           </ion-button>
         </div>
       </form>
@@ -235,7 +229,7 @@ async function submit() {
     const input = toInput()
     if (props.slug && original.value) {
       await updateEvent(original.value.id, input)
-      await toast('Event mis à jour')
+      await toast('Événement mis à jour')
       router.back()
     } else if (!isRegistered.value) {
       saveDraft({ ...input, publishAfterLogin: true })
@@ -254,8 +248,7 @@ async function submit() {
 async function cancelEvent() {
   if (!original.value) return
   const alert = await alertController.create({
-    header: 'Annuler l’event ?',
-    message: 'Les invités verront que l’event est annulé. Pense à les prévenir dans la conversation.',
+    header: 'Annuler l’événement ?',
     buttons: [
       { text: 'Non', role: 'cancel' },
       {
@@ -266,7 +259,7 @@ async function cancelEvent() {
             await updateEvent(original.value!.id, { cancelled_at: new Date().toISOString() })
             await router.replace(`/e/${props.slug}`)
           } catch (e) {
-            await toast(`L’event n’a pas pu être annulé : ${(e as Error).message}`, 'danger')
+            await toast(`L’événement n’a pas pu être annulé : ${(e as Error).message}`, 'danger')
           }
         },
       },
@@ -282,7 +275,7 @@ onIonViewWillEnter(async () => {
       ? await getEventForEdit(props.slug, currentUser.value.id).catch(() => null)
       : null
     if (!e) {
-      await toast('Event introuvable ou tu n’en es pas l’organisateur', 'danger')
+      await toast('Événement introuvable ou tu n’en es pas l’organisateur', 'danger')
       await router.replace('/')
       return
     }
@@ -369,16 +362,8 @@ onIonViewWillEnter(async () => {
   border-radius: 50%;
   border: 1px solid;
 }
-.hint {
-  font-size: 0.85rem;
-  text-align: center;
-  margin-top: 12px;
-}
 .toggle-help {
   font-size: 0.8rem;
   margin: 2px 0 0;
-}
-.responses-help {
-  margin: 6px 0 10px;
 }
 </style>

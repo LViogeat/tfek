@@ -39,7 +39,7 @@
               v-model="name"
               label="Ton prénom"
               label-placement="stacked"
-              placeholder="Pour que l’orga sache qui tu es"
+              placeholder="Ton prénom"
               :maxlength="60"
               autocomplete="given-name"
               @keyup.enter="submit"

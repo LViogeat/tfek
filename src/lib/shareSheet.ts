@@ -22,7 +22,7 @@ export async function openShareSheet(opts: { header: string; title: string; text
         handler: () => {
           void copyToClipboard(full).then(async (ok) => {
             const t = await toastController.create({
-              message: ok ? 'Message copié, colle-le dans ta conversation' : 'Impossible de copier',
+              message: ok ? 'Message copié' : 'Impossible de copier',
               duration: 2000,
               position: 'top',
             })

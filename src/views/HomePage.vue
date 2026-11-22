@@ -20,19 +20,15 @@
       <div class="page-narrow">
         <div v-if="!isRegistered" class="hero ion-padding">
           <div class="lbl hero-tag">Invitations sans compte</div>
-          <h1 class="disp">Tes events, sans le chaos des conversations de groupe</h1>
-          <p class="muted">
-            Crée un event en 30 secondes, partage le lien dans ta conversation et vois enfin qui vient.
-            Tes invités répondent sans créer de compte.
-          </p>
+          <h1 class="disp">Tes événements, sans le chaos des conversations de groupe</h1>
           <ion-button expand="block" router-link="/new">
             <ion-icon slot="start" :icon="addOutline" />
-            Créer un event
+            Créer un événement
           </ion-button>
         </div>
 
         <template v-if="isRegistered">
-          <h1 class="disp home-title">Tes events</h1>
+          <h1 class="disp home-title">Tes événements</h1>
           <div class="segment-wrap">
             <ion-segment v-model="tab">
               <ion-segment-button value="organized">
@@ -47,15 +43,15 @@
           <ion-list v-if="tab === 'organized'" inset>
             <EventListItem v-for="e in organized" :key="e.id" :event="e" />
             <div v-if="!loading && organized.length === 0" class="empty ion-padding">
-              <p class="muted">Tu n’as encore organisé aucun event.</p>
-              <ion-button fill="outline" router-link="/new">Créer mon premier event</ion-button>
+              <p class="muted">Aucun événement organisé</p>
+              <ion-button fill="outline" router-link="/new">Créer mon premier événement</ion-button>
             </div>
           </ion-list>
 
           <ion-list v-else inset>
             <EventListItem v-for="i in invitations" :key="i.event.id" :event="i.event" :status="i.status" />
             <p v-if="!loading && invitations.length === 0" class="empty muted ion-padding">
-              Les events auxquels tu réponds apparaîtront ici.
+              Aucune invitation
             </p>
           </ion-list>
         </template>
@@ -73,7 +69,7 @@
       </div>
 
       <ion-fab v-if="isRegistered" slot="fixed" vertical="bottom" horizontal="end">
-        <ion-fab-button router-link="/new" aria-label="Créer un event">
+        <ion-fab-button router-link="/new" aria-label="Créer un événement">
           <ion-icon :icon="addOutline" />
         </ion-fab-button>
       </ion-fab>
@@ -124,7 +120,7 @@ async function load() {
   } catch (e) {
     if (seq !== loadSeq) return
     const t = await toastController.create({
-      message: `Impossible de charger tes events : ${(e as Error).message}`,
+      message: `Impossible de charger tes événements : ${(e as Error).message}`,
       color: 'danger',
       duration: 3000,
       position: 'top',
@@ -160,11 +156,7 @@ watch([() => currentUser.value?.id, mergedVersion], load)
 .hero h1 {
   font-size: 2.3rem;
   line-height: 1.02;
-  margin: 16px 0 12px;
-}
-.hero p {
-  margin-bottom: 24px;
-  line-height: 1.5;
+  margin: 16px 0 28px;
 }
 .home-title {
   font-size: 2rem;

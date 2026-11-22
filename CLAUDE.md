@@ -14,6 +14,8 @@ App d'events « comme Facebook avant », partagée par un lien dans WhatsApp/Mes
 
 - **Ne jamais ajouter de friction pour les invités** (pas de compte, pas d'e-mail obligatoire, pas d'étape en plus). C'est le principe n°1 du produit.
 - **On lit avant de répondre** : la réponse est dans une barre fixée en bas de la page d'event, jamais au-dessus de la description.
+- **Dire « événement », jamais « event »** dans l'interface et les messages (le code garde `event`).
+- **Pas de phrases explicatives** : l'appli doit se comprendre seule. Des libellés courts, pas de texte d'aide sous les champs ni de paragraphes de présentation.
 - **UI en français, tutoiement**, ton simple et sobre : **pas de point d'exclamation ni d'emoji dans l'interface** (ni dans les messages de partage). Le fun passe par le design. Les commentaires de code sont aussi en français.
 - **Design « billet »** : voir `src/theme/variables.css` (tokens) et `src/lib/themes.ts` (6 palettes chic par event). Réutilise les classes `.disp`, `.mono`, `.lbl`, `.section-title` et les variables `--t-bg`, `--t-band`, `--t-stamp`, `--t-accent`, `--t-on-accent` plutôt que des couleurs en dur. Le tampon de marque est le composant `TfekStamp`.
 - Pas de service payant sans en parler (SMS notamment) : les notifications passent par le partage depuis le téléphone de l'organisateur.

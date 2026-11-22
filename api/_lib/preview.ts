@@ -29,7 +29,7 @@ export interface PreviewGuest {
 export const TIME_ZONE = 'Europe/Paris'
 
 export const DEFAULT_TITLE = 'tfek'
-export const DEFAULT_DESCRIPTION = 'Organise tes events et sache qui vient.'
+export const DEFAULT_DESCRIPTION = 'Organise tes événements et sache qui vient.'
 
 const SLUG_RE = /^[A-Za-z0-9-]{1,64}$/
 
