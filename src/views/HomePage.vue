@@ -20,15 +20,15 @@
       <div class="page-narrow">
         <div v-if="!isRegistered" class="hero ion-padding">
           <div class="lbl hero-tag">Invitations sans compte</div>
-          <h1 class="disp">Tes événements, sans le chaos des conversations de groupe</h1>
+          <h1 class="disp">Tes évènements, sans le chaos des conversations de groupe</h1>
           <ion-button expand="block" router-link="/new">
             <ion-icon slot="start" :icon="addOutline" />
-            Créer un événement
+            Créer un évènement
           </ion-button>
         </div>
 
         <template v-if="isRegistered">
-          <h1 class="disp home-title">Tes événements</h1>
+          <h1 class="disp home-title">Tes évènements</h1>
           <div class="segment-wrap">
             <ion-segment v-model="tab">
               <ion-segment-button value="organized">
@@ -43,8 +43,8 @@
           <ion-list v-if="tab === 'organized'" inset>
             <EventListItem v-for="e in organized" :key="e.id" :event="e" />
             <div v-if="!loading && organized.length === 0" class="empty ion-padding">
-              <p class="muted">Aucun événement organisé</p>
-              <ion-button fill="outline" router-link="/new">Créer mon premier événement</ion-button>
+              <p class="muted">Aucun évènement organisé</p>
+              <ion-button fill="outline" router-link="/new">Créer mon premier évènement</ion-button>
             </div>
           </ion-list>
 
@@ -69,7 +69,7 @@
       </div>
 
       <ion-fab v-if="isRegistered" slot="fixed" vertical="bottom" horizontal="end">
-        <ion-fab-button router-link="/new" aria-label="Créer un événement">
+        <ion-fab-button router-link="/new" aria-label="Créer un évènement">
           <ion-icon :icon="addOutline" />
         </ion-fab-button>
       </ion-fab>
@@ -120,7 +120,7 @@ async function load() {
   } catch (e) {
     if (seq !== loadSeq) return
     const t = await toastController.create({
-      message: `Impossible de charger tes événements : ${(e as Error).message}`,
+      message: `Impossible de charger tes évènements : ${(e as Error).message}`,
       color: 'danger',
       duration: 3000,
       position: 'top',
