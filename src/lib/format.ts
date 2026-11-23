@@ -111,7 +111,10 @@ export function changeSummary(before: ChangeFields, after: ChangeFields): string
 
   const endBefore = before.ends_at ? new Date(before.ends_at).getTime() : null
   const endAfter = after.ends_at ? new Date(after.ends_at) : null
-  if ((endAfter?.getTime() ?? null) !== endBefore) {
+  // Une fin qui suit le début (même durée) n'est pas un changement en soi
+  const sameDuration =
+    endBefore !== null && endAfter !== null && endAfter.getTime() - a.getTime() === endBefore - b.getTime()
+  if ((endAfter?.getTime() ?? null) !== endBefore && !sameDuration) {
     if (!endAfter) lines.push('Plus d’heure de fin')
     else lines.push(`Fin : ${sameDay(endAfter, a) ? timeFmt.format(endAfter) : dayAndTime(endAfter)}`)
   }
@@ -139,4 +142,15 @@ export function weeksUntilFuture(startsAt: string, now = Date.now()): number {
   let weeks = 1
   while (new Date(shiftWeeks(startsAt, weeks)).getTime() <= now) weeks++
   return weeks
+}
+
+/**
+ * L'évènement est terminé : après sa fin, ou, sans heure de fin, après le jour de son début.
+ * Un évènement en cours n'est pas terminé (un changement de lieu y compte d'autant plus).
+ */
+export function isOver(e: { starts_at: string; ends_at: string | null }, now = Date.now()): boolean {
+  if (e.ends_at) return new Date(e.ends_at).getTime() < now
+  const endOfDay = new Date(e.starts_at)
+  endOfDay.setHours(23, 59, 59, 999)
+  return endOfDay.getTime() < now
 }

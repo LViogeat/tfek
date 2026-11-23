@@ -500,6 +500,14 @@ describe('dupliquer et prévenir des changements', () => {
     expect((await g.rpc('get_event_invitees', { p_slug: b })).data?.some((i) => i.is_me)).toBe(false)
     // Recopier n'ajoute rien
     expect((await orga.rpc('copy_invitees', { p_from: a, p_to: b })).data).toBe(0)
+    // Ni vers le même évènement, ni vers un évènement annulé
+    expect((await orga.rpc('copy_invitees', { p_from: a, p_to: a })).error).not.toBeNull()
+    const { data: cancelled } = await orga
+      .from('events')
+      .insert({ title: 'Annulé', starts_at: new Date(Date.now() + 86400e3).toISOString(), cancelled_at: new Date().toISOString() })
+      .select()
+      .single()
+    expect((await orga.rpc('copy_invitees', { p_from: a, p_to: cancelled!.slug })).error?.message).toBe('Cet évènement est annulé')
     await orga.rpc('remove_friend', { p_user: '22222222-2222-2222-2222-222222222222' })
   })
 

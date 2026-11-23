@@ -200,7 +200,7 @@ import { formatRelative, parseNames } from '@/lib/format'
 import { getInvitableFriends, inviteFriends } from '@/lib/friends'
 import { themeStyle } from '@/lib/themes'
 import { announcementText, eventUrl, invitationText, maybeText, reminderText, shareUrl } from '@/lib/share'
-import { pendingShare } from '@/lib/pendingShare'
+import { takePendingShare } from '@/lib/pendingShare'
 import { openShareSheet } from '@/lib/shareSheet'
 import { downloadIcs } from '@/lib/ics'
 
@@ -253,11 +253,8 @@ async function load() {
     invitees.value = i
     invitableFriends.value = f
     // Retour du formulaire après un changement d'heure, de lieu ou une annulation : on fait partager l'info
-    if (e?.is_organizer && pendingShare.value?.slug === props.slug) {
-      const body = pendingShare.value.body
-      pendingShare.value = null
-      shareAnnouncement(body)
-    }
+    const toShare = e?.is_organizer ? takePendingShare(props.slug) : null
+    if (toShare) shareAnnouncement(toShare)
   } catch (err) {
     if (seq === loadSeq) await toast((err as Error).message, 'danger')
   } finally {
@@ -314,22 +311,21 @@ async function shareReminder() {
 
   const share = (text: string) =>
     openShareSheet({ header: 'Relancer les invités', title: e.title, text, url: sharedUrl.value })
-  const options: { text: string; share: () => Promise<void> }[] = []
-  // Sans liste d'invités attendus, on ne sait pas qui n'a pas répondu : message général
-  if (!invitees.value.length || pendingNames.length) {
-    options.push({
-      text: invitees.value.length ? `Pas encore répondu · ${pendingNames.length}` : 'Ceux qui n’ont pas répondu',
-      share: () => share(reminderText(e.title, sharedUrl.value, named(pendingNames))),
-    })
-  }
+  // Toujours un choix pour ceux qui n'ont pas répondu : nominatif si des invités attendus n'ont pas
+  // répondu, sinon général (le groupe compte souvent plus de monde que la liste)
+  const options: { text: string; share: () => Promise<void> }[] = [
+    pendingNames.length
+      ? {
+          text: `Pas encore répondu · ${pendingNames.length}`,
+          share: () => share(reminderText(e.title, sharedUrl.value, named(pendingNames))),
+        }
+      : { text: 'Ceux qui n’ont pas répondu', share: () => share(reminderText(e.title, sharedUrl.value)) },
+  ]
   if (maybeNames.length) {
     options.push({
       text: `Peut-être · ${maybeNames.length}`,
       share: () => share(maybeText(e.title, sharedUrl.value, named(maybeNames))),
     })
-  }
-  if (!options.length) {
-    options.push({ text: '', share: () => share(reminderText(e.title, sharedUrl.value)) })
   }
   if (options.length === 1) {
     await options[0]!.share()
@@ -338,7 +334,13 @@ async function shareReminder() {
   const sheet = await actionSheetController.create({
     header: 'Relancer',
     buttons: [
-      ...options.map((o) => ({ text: o.text, handler: () => void o.share() })),
+      ...options.map((o) => ({
+        text: o.text,
+        // Les erreurs dans les handlers sont avalées par Ionic : on les affiche
+        handler: () => {
+          o.share().catch((err) => void toast((err as Error).message, 'danger'))
+        },
+      })),
       { text: 'Annuler', role: 'cancel' },
     ],
   })

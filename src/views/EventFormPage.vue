@@ -156,8 +156,8 @@ import {
   copyInvitees, createEvent, getEventForEdit, getInvitees, postAnnouncement, updateEvent, type EventInput, type EventRow,
 } from '@/lib/events'
 import { clearDraft, loadDraft, saveDraft } from '@/lib/draft'
-import { changeSummary, shiftWeeks, toLocalInput, weeksUntilFuture } from '@/lib/format'
-import { pendingShare } from '@/lib/pendingShare'
+import { changeSummary, isOver, shiftWeeks, toLocalInput, weeksUntilFuture } from '@/lib/format'
+import { setPendingShare } from '@/lib/pendingShare'
 import { DEFAULT_THEME, THEMES, getTheme, themeStyle } from '@/lib/themes'
 
 const props = defineProps<{ slug?: string }>()
@@ -205,6 +205,8 @@ const sourceInvitees = ref(0)
 const copyGuests = ref(true)
 // Le formulaire a été rempli depuis un évènement source : à vider pour une création ordinaire
 let filledFromSource = false
+// Chaque entrée sur la page invalide les chargements précédents (réponse tardive d'une duplication)
+let enterSeq = 0
 
 const canSubmit = computed(() => form.title.trim().length > 0 && !!startsAt.value)
 
@@ -288,7 +290,7 @@ async function submit() {
       await updateEvent(before.id, input)
       await announceChange(before, input)
       await toast('Évènement mis à jour')
-      router.back()
+      await backToEvent()
     } else if (!isRegistered.value) {
       saveDraft({ ...input, publishAfterLogin: true, draftId: draftId.value })
       // Le retour de connexion passe par /new?publish=1 : seul ce retour publie le brouillon
@@ -303,18 +305,22 @@ async function submit() {
   }
 }
 
+/** Retour à la page de l'évènement : par l'historique si on en vient, sinon en la remplaçant. */
+async function backToEvent() {
+  if (router.options.history.state.back === `/e/${props.slug}`) router.back()
+  else await router.replace(`/e/${props.slug}`)
+}
+
 /**
  * Heure, date ou lieu changés : publie une info et la fait partager en arrivant sur la page.
- * Rien pour un évènement passé ou annulé.
+ * Rien pour un évènement terminé (avant comme après) ou annulé ; un évènement en cours compte.
  */
 async function announceChange(before: EventRow, after: EventInput) {
-  const now = Date.now()
-  const past = new Date(before.starts_at).getTime() < now && new Date(after.starts_at).getTime() < now
   const summary = changeSummary(before, after)
-  if (!summary || past || before.cancelled_at || !props.slug) return
+  if (!summary || (isOver(before) && isOver(after)) || before.cancelled_at || !props.slug) return
   try {
     await postAnnouncement(before.id, summary, 'change')
-    pendingShare.value = { slug: props.slug, body: summary }
+    setPendingShare(props.slug, summary)
   } catch (e) {
     await toast(`L’info n’a pas pu être publiée : ${(e as Error).message}`, 'danger')
   }
@@ -331,12 +337,16 @@ async function cancelEvent() {
         role: 'destructive',
         handler: async () => {
           try {
-            await updateEvent(original.value!.id, { cancelled_at: new Date().toISOString() })
-            try {
-              await postAnnouncement(original.value!.id, 'Évènement annulé', 'cancel')
-              pendingShare.value = { slug: props.slug!, body: 'Évènement annulé' }
-            } catch {
-              // L'annulation est faite : l'info manquante ne doit pas la masquer
+            const e = original.value!
+            await updateEvent(e.id, { cancelled_at: new Date().toISOString() })
+            // Évènement terminé : personne à prévenir
+            if (!isOver(e)) {
+              try {
+                await postAnnouncement(e.id, 'Évènement annulé', 'cancel')
+                setPendingShare(props.slug!, 'Évènement annulé')
+              } catch {
+                // L'annulation est faite : l'info manquante ne doit pas la masquer
+              }
             }
             await router.replace(`/e/${props.slug}`)
           } catch (e) {
@@ -350,7 +360,7 @@ async function cancelEvent() {
 }
 
 /** Dupliquer : copie de l'évènement source, une semaine plus tard (ou la prochaine semaine à venir). */
-async function fillFromSource(from: string) {
+async function fillFromSource(from: string, seq: number) {
   resetForm()
   fromSlug.value = null
   sourceInvitees.value = 0
@@ -360,23 +370,28 @@ async function fillFromSource(from: string) {
   const user = currentUser.value
   const src = user && isRegistered.value ? await getEventForEdit(from, user.id).catch(() => null) : null
   // Source introuvable ou pas organisateur : formulaire vide, sans message
-  if (!src) return
+  if (!src || seq !== enterSeq) return
   const weeks = weeksUntilFuture(src.starts_at)
   fill({
     ...src,
     starts_at: shiftWeeks(src.starts_at, weeks),
     ends_at: src.ends_at ? shiftWeeks(src.ends_at, weeks) : null,
   })
+  const count = (await getInvitees(from).catch(() => [])).length
+  if (seq !== enterSeq) return
   fromSlug.value = from
-  sourceInvitees.value = (await getInvitees(from).catch(() => [])).length
+  sourceInvitees.value = count
 }
 
 onIonViewWillEnter(async () => {
+  const seq = ++enterSeq
   await initAuth()
+  if (seq !== enterSeq) return
   if (props.slug) {
     const e = currentUser.value && isRegistered.value
       ? await getEventForEdit(props.slug, currentUser.value.id).catch(() => null)
       : null
+    if (seq !== enterSeq) return
     if (!e) {
       await toast('Évènement introuvable ou tu n’en es pas l’organisateur', 'danger')
       await router.replace('/')
@@ -388,7 +403,7 @@ onIonViewWillEnter(async () => {
   }
   const from = typeof route.query.from === 'string' ? route.query.from : null
   if (from) {
-    await fillFromSource(from)
+    await fillFromSource(from, seq)
     return
   }
   if (filledFromSource) {

@@ -939,6 +939,12 @@ begin
   if v_from is null or v_to is null then
     raise exception 'Réservé à l''organisateur' using errcode = '42501';
   end if;
+  if v_from = v_to then
+    raise exception 'Même évènement' using errcode = '22023';
+  end if;
+  if exists (select 1 from public.events where id = v_to and cancelled_at is not null) then
+    raise exception 'Cet évènement est annulé' using errcode = 'P0001';
+  end if;
 
   insert into public.invitees (event_id, display_name, user_id)
   select v_to, i.display_name,

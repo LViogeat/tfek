@@ -4,6 +4,7 @@ import {
   responsesSentence, shortPlace, ticketDate, type PreviewEvent, type PreviewGuest,
 } from '../api/_lib/preview'
 import { maybeText, reminderText, shareUrl } from '../src/lib/share'
+import { setPendingShare, takePendingShare } from '../src/lib/pendingShare'
 
 const EVENT: PreviewEvent = {
   slug: 'k7m2qx9pda',
@@ -159,5 +160,19 @@ describe('relance des « peut-être »', () => {
     const many = Array.from({ length: 9 }, (_, i) => `P${i}`)
     expect(maybeText('Dîner', 'U', many)).toBe('Petit rappel pour « Dîner ». Si tu m’avais dit peut-être, tu viens ? Réponds ici : U')
     expect(maybeText('Dîner', 'U')).toBe(maybeText('Dîner', 'U', many))
+  })
+})
+
+describe('partage en attente après un changement', () => {
+  it('une seule fois, pour le bon évènement, pendant une minute', () => {
+    vi.useFakeTimers()
+    setPendingShare('a', 'Nouvelle heure')
+    expect(takePendingShare('b')).toBeNull()
+    expect(takePendingShare('a')).toBe('Nouvelle heure')
+    expect(takePendingShare('a')).toBeNull()
+    setPendingShare('a', 'Nouveau lieu')
+    vi.advanceTimersByTime(61_000)
+    expect(takePendingShare('a')).toBeNull()
+    vi.useRealTimers()
   })
 })
