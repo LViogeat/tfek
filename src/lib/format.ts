@@ -76,3 +76,81 @@ export function joinNames(names: string[]): string {
   if (names.length <= 1) return names[0] ?? ''
   return `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}`
 }
+
+/** « samedi 6 décembre à 20:00 », sans majuscule, pour le milieu d'une phrase. */
+function dayAndTime(d: Date): string {
+  return `${dateFmt.format(d)} à ${timeFmt.format(d)}`
+}
+
+function sameDay(a: Date, b: Date): boolean {
+  return a.toDateString() === b.toDateString()
+}
+
+export interface ChangeFields {
+  starts_at: string
+  ends_at: string | null
+  location: string | null
+}
+
+/**
+ * Texte de l'info publiée quand l'organisateur change la date, l'heure ou le lieu :
+ * une ligne par changement, avec l'ancienne valeur. `null` si rien d'important n'a changé.
+ */
+export function changeSummary(before: ChangeFields, after: ChangeFields): string | null {
+  const lines: string[] = []
+  const b = new Date(before.starts_at)
+  const a = new Date(after.starts_at)
+  if (a.getTime() !== b.getTime()) {
+    if (sameDay(a, b)) {
+      lines.push(`Nouvelle heure : ${dayAndTime(a)} (au lieu de ${timeFmt.format(b)})`)
+    } else {
+      const sameTime = timeFmt.format(a) === timeFmt.format(b)
+      lines.push(`Nouvelle date : ${dayAndTime(a)} (au lieu du ${sameTime ? dateFmt.format(b) : dayAndTime(b)})`)
+    }
+  }
+
+  const endBefore = before.ends_at ? new Date(before.ends_at).getTime() : null
+  const endAfter = after.ends_at ? new Date(after.ends_at) : null
+  // Une fin qui suit le début (même durée) n'est pas un changement en soi
+  const sameDuration =
+    endBefore !== null && endAfter !== null && endAfter.getTime() - a.getTime() === endBefore - b.getTime()
+  if ((endAfter?.getTime() ?? null) !== endBefore && !sameDuration) {
+    if (!endAfter) lines.push('Plus d’heure de fin')
+    else lines.push(`Fin : ${sameDay(endAfter, a) ? timeFmt.format(endAfter) : dayAndTime(endAfter)}`)
+  }
+
+  const placeBefore = before.location?.trim() || null
+  const placeAfter = after.location?.trim() || null
+  if (placeAfter !== placeBefore) {
+    if (!placeAfter) lines.push('Lieu à préciser')
+    else if (!placeBefore) lines.push(`Lieu : ${placeAfter}`)
+    else lines.push(`Nouveau lieu : ${placeAfter} (au lieu de ${placeBefore})`)
+  }
+
+  return lines.length ? lines.join('\n') : null
+}
+
+/** Décale une date de `weeks` semaines, à la même heure locale (changements d'heure compris). */
+export function shiftWeeks(iso: string, weeks: number): string {
+  const d = new Date(iso)
+  d.setDate(d.getDate() + 7 * weeks)
+  return d.toISOString()
+}
+
+/** Dupliquer : nombre de semaines (au moins 1) pour que la copie tombe dans le futur. */
+export function weeksUntilFuture(startsAt: string, now = Date.now()): number {
+  let weeks = 1
+  while (new Date(shiftWeeks(startsAt, weeks)).getTime() <= now) weeks++
+  return weeks
+}
+
+/**
+ * L'évènement est terminé : après sa fin, ou, sans heure de fin, après le jour de son début.
+ * Un évènement en cours n'est pas terminé (un changement de lieu y compte d'autant plus).
+ */
+export function isOver(e: { starts_at: string; ends_at: string | null }, now = Date.now()): boolean {
+  if (e.ends_at) return new Date(e.ends_at).getTime() < now
+  const endOfDay = new Date(e.starts_at)
+  endOfDay.setHours(23, 59, 59, 999)
+  return endOfDay.getTime() < now
+}

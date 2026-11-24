@@ -50,9 +50,13 @@ export interface Guest {
   updated_at: string
 }
 
+/** `change` : heure, date ou lieu modifiés ; `cancel` : évènement annulé. */
+export type AnnouncementKind = 'message' | 'change' | 'cancel'
+
 export interface Announcement {
   id: string
   body: string
+  kind: AnnouncementKind
   created_at: string
 }
 
@@ -85,7 +89,7 @@ export async function getGuests(slug: string): Promise<Guest[]> {
 }
 
 export async function getAnnouncements(slug: string): Promise<Announcement[]> {
-  return check(await supabase.rpc('get_event_announcements', { p_slug: slug }))
+  return check(await supabase.rpc('get_event_announcements', { p_slug: slug })) as Announcement[]
 }
 
 /** `inviteeId` : prénom de la liste choisi par l'invité (« c'est moi »). */
@@ -143,8 +147,13 @@ export async function getEventForEdit(slug: string, userId: string): Promise<Eve
   )
 }
 
-export async function postAnnouncement(eventId: string, body: string) {
-  check(await supabase.from('announcements').insert({ event_id: eventId, body }))
+export async function postAnnouncement(eventId: string, body: string, kind: AnnouncementKind = 'message') {
+  check(await supabase.from('announcements').insert({ event_id: eventId, body, kind }))
+}
+
+/** Dupliquer : reprend la liste des invités attendus de `from` dans `to`. */
+export async function copyInvitees(from: string, to: string): Promise<number> {
+  return check(await supabase.rpc('copy_invitees', { p_from: from, p_to: to }))
 }
 
 export async function deleteAnnouncement(id: string) {

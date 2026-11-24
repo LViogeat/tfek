@@ -47,8 +47,12 @@ async function emailCode(email) {
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
     return page
   }
-  // Ionic garde les pages précédentes dans le DOM (cachées) : on cible la page visible
-  const visible = (p, sel) => p.locator(`.ion-page:not(.ion-page-hidden) ${sel}`)
+  // Ionic garde les pages précédentes dans le DOM (cachées) : on cible la page visible.
+  // `ion-app` porte aussi la classe `ion-page` : d'où `ion-router-outlet >`
+  const visible = (p, sel) => p.locator(`ion-router-outlet > .ion-page:not(.ion-page-hidden) ${sel}`)
+  // Fin de la transition entre deux pages : une seule page visible
+  const settled = (p) =>
+    p.waitForFunction(() => document.querySelectorAll('ion-router-outlet > .ion-page:not(.ion-page-hidden)').length === 1)
   const button = (p, text) => p.locator('ion-button', { hasText: text })
   const titleInput = 'input[placeholder^="Anniversaire"]'
 
@@ -179,6 +183,54 @@ async function emailCode(email) {
   await visible(i, '.people').getByText('Camille').waitFor({ timeout: 8000 })
   await i.screenshot({ path: `${OUT}/5d-amis.png`, fullPage: true })
   check('amis : Camille dans la liste d’Alex', true)
+
+  // 4d. Changement d'heure : info publiée automatiquement, partage proposé au retour sur la page
+  await o.goto(`${BASE}/e/${slug}`)
+  await o.locator('ion-router-outlet > .ion-page:not(.ion-page-hidden)').getByRole('link', { name: 'Modifier', exact: true }).click()
+  const startInput = visible(o, 'input[type=datetime-local]').first()
+  await startInput.waitFor()
+  const start = await startInput.inputValue()
+  await startInput.fill(start.replace(/T\d\d:\d\d$/, 'T21:30'))
+  await button(o, 'Enregistrer').click()
+  await o.getByText('Prévenir les invités').waitFor({ timeout: 8000 })
+  await sleep(400)
+  await o.screenshot({ path: `${OUT}/6a-changement-partage.png` })
+  await o.locator('ion-action-sheet button', { hasText: 'Annuler' }).click()
+  const info = visible(o, '.announce')
+  await info.getByText(/Nouvelle heure : .* à 21:30 \(au lieu de/).waitFor({ timeout: 5000 })
+  check('changement : info « Nouvelle heure » publiée', (await info.innerText()).includes('CHANGEMENT'))
+
+  // 4e. Relancer les « peut-être » : réponses privées sur cet évènement, donc message sans prénoms
+  await p.goto(`${BASE}/e/${slug}`)
+  await p.getByRole('button', { name: /Peut-être/ }).click()
+  await p.locator('.name-chip', { hasText: 'Autre prénom' }).click()
+  await p.locator('ion-input input').first().fill('Zoé')
+  await p.getByRole('button', { name: /Envoyer ma réponse/ }).click()
+  await p.getByText('C’est noté.', { exact: true }).waitFor()
+  await o.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE })
+  await o.reload()
+  await button(o, 'Relancer').click()
+  await o.locator('ion-action-sheet button', { hasText: 'Peut-être · 1' }).click()
+  await o.locator('ion-action-sheet button', { hasText: 'Copier le message' }).click()
+  await o.getByText('Message copié').waitFor({ timeout: 5000 })
+  const copied = await o.evaluate(() => navigator.clipboard.readText())
+  check('relance : « peut-être » sans prénoms quand les réponses sont privées', copied.includes('Si tu m’avais dit peut-être') && !copied.includes('Zoé'), copied.split('\n')[0])
+
+  // 4f. Dupliquer : formulaire pré-rempli une semaine plus tard, invités repris (Alex, ami, reste invité)
+  await o.locator('ion-router-outlet > .ion-page:not(.ion-page-hidden)').getByRole('link', { name: 'Modifier', exact: true }).click()
+  await button(o, 'Dupliquer').click()
+  await o.waitForURL(/\/new\?from=/)
+  await settled(o)
+  await visible(o, 'ion-toggle').filter({ hasText: 'Reprendre les invités (1)' }).waitFor({ timeout: 8000 })
+  check('dupliquer : formulaire pré-rempli', (await visible(o, titleInput).inputValue()) === 'Pétanque au parc')
+  await o.screenshot({ path: `${OUT}/6b-dupliquer.png`, fullPage: true })
+  await button(o, 'Publier l’évènement').click()
+  await o.waitForURL(/\/e\/\w+\?created=1/, { timeout: 10000 })
+  await settled(o)
+  check('dupliquer : nouvel évènement publié', !o.url().includes(slug))
+  const copiedPending = visible(o, '.group-title').filter({ hasText: 'Pas encore répondu' })
+  await copiedPending.waitFor({ timeout: 8000 })
+  check('dupliquer : invités repris', (await copiedPending.innerText()).includes('· 1'))
 
   // 5. Brouillon abandonné : pré-rempli plus tard, mais jamais publié tout seul
   const d = await newPage()

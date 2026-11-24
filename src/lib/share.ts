@@ -59,7 +59,10 @@ export function announcementText(title: string, body: string, url: string): stri
   return `Info pour « ${title} »\n${body}\n\nInfos et réponses : ${url}`
 }
 
-/** Avec les prénoms de ceux qui n'ont pas répondu, pour les interpeller dans le groupe. */
+/**
+ * Relance de ceux qui n'ont pas répondu, avec leurs prénoms pour les interpeller dans le groupe.
+ * Sans prénoms (liste vide, plus de 8, ou réponses privées : l'appelant passe `[]`) : message général.
+ */
 export function reminderText(title: string, url: string, pending: string[] = []): string {
   if (pending.length === 1) {
     return `Petit rappel pour « ${title} ». ${pending[0]}, dis-moi si tu viens : ${url}`
@@ -68,4 +71,15 @@ export function reminderText(title: string, url: string, pending: string[] = [])
     return `Petit rappel pour « ${title} ». ${joinNames(pending)}, dites-moi si vous venez : ${url}`
   }
   return `Petit rappel pour « ${title} ». Si ce n’est pas déjà fait, dis-moi si tu viens : ${url}`
+}
+
+/** Relance de ceux qui ont dit « peut-être ». Mêmes règles pour les prénoms que `reminderText`. */
+export function maybeText(title: string, url: string, maybe: string[] = []): string {
+  if (maybe.length === 1) {
+    return `Petit rappel pour « ${title} ». ${maybe[0]}, tu m’avais dit peut-être. Tu viens ? Réponds ici : ${url}`
+  }
+  if (maybe.length > 1 && maybe.length <= 8) {
+    return `Petit rappel pour « ${title} ». ${joinNames(maybe)}, vous m’aviez dit peut-être. Vous venez ? Répondez ici : ${url}`
+  }
+  return `Petit rappel pour « ${title} ». Si tu m’avais dit peut-être, tu viens ? Réponds ici : ${url}`
 }
